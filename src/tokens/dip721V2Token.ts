@@ -136,7 +136,7 @@ export class Dip721V2Token extends BaseToken implements Partial<Token> {
     return Actor.createActor(idlFactory, config);
   }
 
-  public static async supportedStandards(
+  public static async supportedInterfaces(
     config: ActorConfig
   ): Promise<Array<{ name: string; url: string }>> {
     try {
