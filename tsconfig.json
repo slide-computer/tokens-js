@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "es2017",
+    "module": "ES2020",
+    "moduleResolution": "node",
+    "outDir": "./lib/esm",
+    "lib": [
+      "dom",
+      "es2015",
+      "es2017"
+    ],
+    "rootDir": ".",
+    "allowJs": true
+  }
+}
