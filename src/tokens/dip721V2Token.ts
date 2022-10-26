@@ -15,23 +15,27 @@ export const DIP721_V2_APPROVAL = "dip721v2_approval";
 const flattenMetadataEntry = ([key, value]: [string, GenericValue]): Array<
   [string, Value]
 > => {
-  const natValueKey = [
-    "NatContent",
-    "Nat64Content",
-    "Nat32Content",
-    "Nat16Content",
-    "Nat8Content",
-  ].find((k) => k in value);
+  const natValueKey = (
+    [
+      "NatContent",
+      "Nat64Content",
+      "Nat32Content",
+      "Nat16Content",
+      "Nat8Content",
+    ] as Array<keyof GenericValue>
+  ).find((k) => k in value);
   if (natValueKey) {
     return [[key, { Nat: BigInt(value[natValueKey]) }]];
   }
-  const intValueKey = [
-    "IntContent",
-    "Int64Content",
-    "Int32Content",
-    "Int16Content",
-    "Int8Content",
-  ].find((k) => k in value);
+  const intValueKey = (
+    [
+      "IntContent",
+      "Int64Content",
+      "Int32Content",
+      "Int16Content",
+      "Int8Content",
+    ] as Array<keyof GenericValue>
+  ).find((k) => k in value);
   if (intValueKey) {
     return [[key, { Int: BigInt(value[intValueKey]) }]];
   }

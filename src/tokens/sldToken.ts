@@ -302,7 +302,7 @@ export class SldToken extends BaseToken implements Partial<Token> {
     createdAtTime?: bigint;
   }) {
     const to = accountFromString(args.to);
-    const getAllTokens = async (page = BigInt(0)) => {
+    const getAllTokens = async (page = BigInt(0)): Promise<bigint[]> => {
       const tokens = await this.tokens!(page);
       if (tokens.length === 0) {
         return [];
@@ -313,7 +313,7 @@ export class SldToken extends BaseToken implements Partial<Token> {
       to: { owner: to.owner, subaccount: to.subaccount ? [to.subaccount] : [] },
       token_id:
         args.tokenId ?? (await getAllTokens()).slice(-1)[0] ?? BigInt(0),
-      metadata: Object.entries(args.metadata),
+      metadata: Object.entries(args.metadata ?? []),
       memo: args.memo ? [args.memo as number[]] : [],
       created_at_time: args.createdAtTime ? [args.createdAtTime] : [],
     });

@@ -9,7 +9,14 @@
       "es2015",
       "es2017"
     ],
-    "rootDir": ".",
+    "rootDir": "./src",
+    "sourceMap": true,
+    "inlineSources": true,
+    "strict": true,
+    "declaration": true,
+    "forceConsistentCasingInFileNames": true,
+    "esModuleInterop": true,
     "allowJs": true
-  }
+  },
+  "include": ["src/**/*"]
 }
