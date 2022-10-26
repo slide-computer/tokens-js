@@ -11,7 +11,7 @@ import { Value } from "./tokens/sld/sld.did";
 
 export interface TokenManagerConfig<S extends string = string>
   extends ActorConfig {
-  supportedStandards?: readonly S[];
+  supportedInterfaces?: readonly S[];
 }
 
 export class TokenManager implements Token {
@@ -27,7 +27,7 @@ export class TokenManager implements Token {
   protected constructor(config: TokenManagerConfig) {
     this._tokens = TokenManager._tokens.reduce((tokens, token) => {
       if (
-        intersect(config.supportedStandards ?? [], token.implementedStandards)
+        intersect(config.supportedInterfaces ?? [], token.implementedInterfaces)
           .length
       ) {
         tokens.push(token.create(config) as unknown as BaseToken & Token);
@@ -37,21 +37,24 @@ export class TokenManager implements Token {
   }
 
   public static async create(config: TokenManagerConfig) {
-    const supportedStandards =
-      config.supportedStandards ??
-      (await TokenManager.supportedStandards(config)).map(({ name }) => name);
-    if (supportedStandards.length) {
-      return new TokenManager({ ...config, supportedStandards });
+    const supportedInterfaces =
+      config.supportedInterfaces ??
+      (await TokenManager.supportedInterfaces(config)).map(({ name }) => name);
+    if (supportedInterfaces.length) {
+      return new TokenManager({
+        ...config,
+        supportedInterfaces: supportedInterfaces,
+      });
     }
 
-    throw Error("No supported standards found for canister");
+    throw Error("No supported interfaces found for canister");
   }
 
-  public static async supportedStandards(config: ActorConfig) {
+  public static async supportedInterfaces(config: ActorConfig) {
     return (
       await Promise.all(
         TokenManager._tokens.map((token) =>
-          token.supportedStandards({
+          token.supportedInterfaces({
             ...config,
             agent:
               config.agent instanceof HttpAgent

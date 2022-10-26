@@ -14,19 +14,19 @@ export const ICP = "ICP";
 
 export class IcpToken extends BaseToken implements Partial<Token> {
   public static canisterIds = [ICP_CANISTER_ID];
-  public static readonly implementedStandards = [ICP];
+  public static readonly implementedInterfaces = [ICP];
 
   private readonly _actor: ActorSubclass<_SERVICE>;
 
   protected constructor({
-    supportedStandards = [],
+    supportedInterfaces = [],
     ...actorConfig
   }: TokenManagerConfig) {
-    super({ supportedStandards, ...actorConfig });
+    super({ supportedInterfaces, ...actorConfig });
     this._actor = IcpToken.createActor(actorConfig);
 
     // Disable methods for unsupported standards
-    if (!supportedStandards.includes(ICP)) {
+    if (!supportedInterfaces.includes(ICP)) {
       this.metadata = undefined;
       this.name = undefined;
       this.symbol = undefined;

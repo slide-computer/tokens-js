@@ -31,19 +31,19 @@ export const tokenIdToExtTokenId = (canisterId: Principal, index: bigint) => {
 };
 
 export class ExtToken extends BaseToken implements Partial<Token> {
-  public static readonly implementedStandards = [EXT_COMMON, EXT_NON_FUNGIBLE];
+  public static readonly implementedInterfaces = [EXT_COMMON, EXT_NON_FUNGIBLE];
 
   private readonly _actor: ActorSubclass<_SERVICE>;
 
   protected constructor({
-    supportedStandards = [],
+    supportedInterfaces = [],
     ...actorConfig
   }: TokenManagerConfig) {
-    super({ supportedStandards, ...actorConfig });
+    super({ supportedInterfaces, ...actorConfig });
     this._actor = ExtToken.createActor(actorConfig);
 
     // Disable methods for unsupported standards
-    if (!supportedStandards.includes(EXT_COMMON)) {
+    if (!supportedInterfaces.includes(EXT_COMMON)) {
       this.metadata = undefined;
       this.name = undefined;
       this.symbol = undefined;
@@ -52,7 +52,7 @@ export class ExtToken extends BaseToken implements Partial<Token> {
       this.transfer = undefined;
       this.logo = undefined;
     }
-    if (!supportedStandards.includes(EXT_NON_FUNGIBLE)) {
+    if (!supportedInterfaces.includes(EXT_NON_FUNGIBLE)) {
       this.totalSupply = undefined;
       this.ownerOf = undefined;
       this.tokens = undefined;
@@ -139,7 +139,7 @@ export class ExtToken extends BaseToken implements Partial<Token> {
       }
     } catch (_) {}
 
-    return this._config.supportedStandards?.includes(EXT_NON_FUNGIBLE)
+    return this._config.supportedInterfaces?.includes(EXT_NON_FUNGIBLE)
       ? "Collection"
       : "Token";
   }
@@ -163,7 +163,7 @@ export class ExtToken extends BaseToken implements Partial<Token> {
       }
     } catch (_) {}
 
-    return this._config.supportedStandards?.includes(EXT_NON_FUNGIBLE)
+    return this._config.supportedInterfaces?.includes(EXT_NON_FUNGIBLE)
       ? "NFT"
       : "TKN";
   }

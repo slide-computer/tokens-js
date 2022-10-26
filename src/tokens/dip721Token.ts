@@ -64,7 +64,7 @@ const flattenMetadataEntry = ([key, value]: [string, GenericValue]): Array<
 };
 
 export class Dip721Token extends BaseToken implements Partial<Token> {
-  public static readonly implementedStandards = [
+  public static readonly implementedInterfaces = [
     DIP721,
     DIP721_MINT,
     DIP721_BURN,
@@ -74,14 +74,14 @@ export class Dip721Token extends BaseToken implements Partial<Token> {
   private readonly _actor: ActorSubclass<_SERVICE>;
 
   protected constructor({
-    supportedStandards = [],
+    supportedInterfaces = [],
     ...actorConfig
   }: TokenManagerConfig) {
-    super({ supportedStandards, ...actorConfig });
+    super({ supportedInterfaces, ...actorConfig });
     this._actor = Dip721Token.createActor(actorConfig);
 
     // Disable methods for unsupported standards
-    if (!supportedStandards.includes(DIP721)) {
+    if (!supportedInterfaces.includes(DIP721)) {
       this.metadata = undefined;
       this.name = undefined;
       this.symbol = undefined;
@@ -96,7 +96,7 @@ export class Dip721Token extends BaseToken implements Partial<Token> {
       this.getCustodians = undefined;
       this.setCustodian = undefined;
     }
-    if (!supportedStandards.includes(DIP721_APPROVAL)) {
+    if (!supportedInterfaces.includes(DIP721_APPROVAL)) {
       this.approve = undefined;
       this.setApprovalForAll = undefined;
       this.isApprovedForAll = undefined;

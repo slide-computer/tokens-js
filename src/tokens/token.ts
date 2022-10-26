@@ -117,7 +117,7 @@ export interface Token {
 }
 
 export abstract class BaseToken {
-  public static readonly implementedStandards: string[];
+  public static readonly implementedInterfaces: string[];
 
   public static create: <T extends string>(
     config: TokenManagerConfig<T>
@@ -125,7 +125,7 @@ export abstract class BaseToken {
 
   public static createActor: (config: ActorConfig) => ActorSubclass<any>;
 
-  public static supportedStandards: (
+  public static supportedInterfaces: (
     config: ActorConfig
   ) => Promise<Array<{ name: string; url: string }>>;
 

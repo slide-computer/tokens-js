@@ -30,19 +30,19 @@ export const tokenIdToSldTokenId = (canisterId: Principal, index: bigint) => {
 };
 
 export class SldToken extends BaseToken implements Partial<Token> {
-  public static readonly implementedStandards = [SLD1, SLD2, SLD4, SLD5];
+  public static readonly implementedInterfaces = [SLD1, SLD2, SLD4, SLD5];
 
   private readonly _actor: ActorSubclass<_SERVICE>;
 
   protected constructor({
-    supportedStandards = [],
+    supportedInterfaces = [],
     ...actorConfig
   }: TokenManagerConfig) {
-    super({ supportedStandards, ...actorConfig });
+    super({ supportedInterfaces, ...actorConfig });
     this._actor = SldToken.createActor(actorConfig);
 
     // Disable methods for unsupported standards
-    if (!supportedStandards.includes(SLD1)) {
+    if (!supportedInterfaces.includes(SLD1)) {
       this.metadata = undefined;
       this.name = undefined;
       this.symbol = undefined;
@@ -60,26 +60,26 @@ export class SldToken extends BaseToken implements Partial<Token> {
       this.assetOf = undefined;
       this.thumbnailOf = undefined;
     }
-    if (!supportedStandards.includes(SLD2)) {
+    if (!supportedInterfaces.includes(SLD2)) {
       this.approve = undefined;
       this.setApproval = undefined;
       this.getApproved = undefined;
       this.transferFrom = undefined;
     }
-    if (!supportedStandards.includes(SLD4)) {
+    if (!supportedInterfaces.includes(SLD4)) {
       this.mint = undefined;
     }
-    if (!supportedStandards.includes(SLD5)) {
+    if (!supportedInterfaces.includes(SLD5)) {
       this.burn = undefined;
     }
-    if (!supportedStandards.includes(SLD6)) {
+    if (!supportedInterfaces.includes(SLD6)) {
       this.getCustodians = undefined;
       this.setCustodian = undefined;
     }
-    if (!supportedStandards.includes(SLD7)) {
+    if (!supportedInterfaces.includes(SLD7)) {
       this.royaltyFee = undefined;
     }
-    if (!supportedStandards.includes(SLD8)) {
+    if (!supportedInterfaces.includes(SLD8)) {
       this.setRoyaltyFee = undefined;
     }
   }
@@ -126,7 +126,7 @@ export class SldToken extends BaseToken implements Partial<Token> {
     return Actor.createActor(idlFactory, config);
   }
 
-  public static async supportedStandards(
+  public static async supportedInterfaces(
     config: ActorConfig
   ): Promise<Array<{ name: string; url: string }>> {
     try {
