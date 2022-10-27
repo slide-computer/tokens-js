@@ -78,7 +78,7 @@ export const accountToHash = (account: {
       ? typeof account.subaccount === "bigint"
         ? subaccountFromIndex(account.subaccount)
         : account.subaccount
-      : []),
+      : subaccountFromIndex(BigInt(0))),
   ]);
   const hash = new Uint8Array(shaObj.array());
   const checksum = crc32(Buffer.from(hash));
@@ -115,7 +115,7 @@ export const subaccountFromIndex = (index: bigint) => {
 };
 
 export const isAccountHash = (address: string) => {
-  const buff = new TextEncoder().encode(address);
+  const buff = Buffer.from(address, "hex");
   const checksum = Buffer.from(buff.slice(0, 4));
   const hash = Buffer.from(buff.slice(4));
   const checksumFromHash = crc32(hash);
