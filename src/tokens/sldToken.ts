@@ -380,8 +380,9 @@ export class SldToken extends BaseToken implements Partial<Token> {
 
   public async logo?() {
     const metadata = await this.metadata!();
-    if ("sld1:logo" in metadata && "Text" in metadata["sld1:logo"]) {
-      return metadata["sld1:logo"].Text;
+    const key = `${SLD1}:logo` as const;
+    if (key in metadata && "Text" in metadata[key]) {
+      return metadata[key].Text;
     }
   }
 
@@ -390,13 +391,15 @@ export class SldToken extends BaseToken implements Partial<Token> {
     if (!metadata) {
       return;
     }
+    const locationKey = `${SLD1}:asset` as const;
     const location =
-      "sld1:asset" in metadata && "Text" in metadata["sld1:asset"]
-        ? metadata["sld1:asset"].Text
+      locationKey in metadata && "Text" in metadata[locationKey]
+        ? metadata[locationKey].Text
         : undefined;
+    const typeKey = `${SLD1}:asset_type` as const;
     const type =
-      "sld1:asset_type" in metadata && "Text" in metadata["sld1:asset_type"]
-        ? metadata["sld1:asset_type"].Text
+      typeKey in metadata && "Text" in metadata[typeKey]
+        ? metadata[typeKey].Text
         : undefined;
     return location !== undefined ? { location, type } : undefined;
   }
@@ -406,8 +409,9 @@ export class SldToken extends BaseToken implements Partial<Token> {
     if (!metadata) {
       return;
     }
-    if ("sld1:image" in metadata && "Text" in metadata["sld1:image"]) {
-      return metadata["sld1:image"].Text;
+    const key = `${SLD1}:image` as const;
+    if (key in metadata && "Text" in metadata[key]) {
+      return metadata[key].Text;
     }
   }
 }

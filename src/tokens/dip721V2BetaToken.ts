@@ -404,4 +404,26 @@ export class Dip721V2BetaToken extends BaseToken implements Partial<Token> {
   public async logo?() {
     return (await this._actor.logo())[0];
   }
+
+  public async assetOf?(tokenId: bigint) {
+    const metadata = await this.metadataOf!(tokenId);
+    if (!metadata) {
+      return;
+    }
+    const key = `${DIP721_V2_BETA}:properties:location` as const;
+    if (key in metadata && "Text" in metadata[key]) {
+      return { location: metadata[key].Text };
+    }
+  }
+
+  public async imageOf?(tokenId: bigint) {
+    const metadata = await this.metadataOf!(tokenId);
+    if (!metadata) {
+      return;
+    }
+    const key = `${DIP721_V2_BETA}:properties:thumbnail` as const;
+    if (key in metadata && "Text" in metadata[key]) {
+      return metadata[key].Text;
+    }
+  }
 }
