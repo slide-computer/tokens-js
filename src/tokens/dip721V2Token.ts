@@ -7,10 +7,10 @@ import { BaseToken, Token } from "./token";
 import { Principal } from "@dfinity/principal";
 import { Value } from "./sld/sld.did";
 
-export const DIP721_V2 = "dip721v2";
-export const DIP721_v2_MINT = "dip721v2_mint";
-export const DIP721_v2_BURN = "dip721v2_burn";
-export const DIP721_V2_APPROVAL = "dip721v2_approval";
+export const DIP721_V2 = "dip721_v2";
+export const DIP721_V2_MINT = "dip721_v2_mint";
+export const DIP721_V2_BURN = "dip721_v2_burn";
+export const DIP721_V2_APPROVAL = "dip721_v2_approval";
 
 const flattenMetadataEntry = ([key, value]: [string, GenericValue]): Array<
   [string, Value]
@@ -65,8 +65,8 @@ const flattenMetadataEntry = ([key, value]: [string, GenericValue]): Array<
 export class Dip721V2Token extends BaseToken implements Partial<Token> {
   public static readonly implementedInterfaces = [
     DIP721_V2,
-    DIP721_v2_MINT,
-    DIP721_v2_BURN,
+    DIP721_V2_MINT,
+    DIP721_V2_BURN,
     DIP721_V2_APPROVAL,
   ];
 
@@ -148,9 +148,9 @@ export class Dip721V2Token extends BaseToken implements Partial<Token> {
         DIP721_V2,
         ...res.map((supportedInterface) =>
           "Mint" in supportedInterface
-            ? DIP721_v2_MINT
+            ? DIP721_V2_MINT
             : "Burn" in supportedInterface
-            ? DIP721_v2_BURN
+            ? DIP721_V2_BURN
             : DIP721_V2_APPROVAL
         ),
       ].map((name) => ({
@@ -238,9 +238,9 @@ export class Dip721V2Token extends BaseToken implements Partial<Token> {
     if ("Ok" in res) {
       const metadata: { [key: string]: Value } = {
         [`${DIP721_V2}:token_identifier`]: { Nat: res.Ok.token_identifier },
-        [`${DIP721_v2_MINT}:minted_by`]: { Text: res.Ok.minted_by.toText() },
-        [`${DIP721_v2_MINT}:minted_at`]: { Nat: res.Ok.minted_at },
-        [`${DIP721_v2_BURN}:is_burned`]: {
+        [`${DIP721_V2_MINT}:minted_by`]: { Text: res.Ok.minted_by.toText() },
+        [`${DIP721_V2_MINT}:minted_at`]: { Nat: res.Ok.minted_at },
+        [`${DIP721_V2_BURN}:is_burned`]: {
           Nat: BigInt(res.Ok.is_burned ? 1 : 0),
         },
       };
@@ -260,12 +260,12 @@ export class Dip721V2Token extends BaseToken implements Partial<Token> {
         };
       }
       if (res.Ok.burned_by.length) {
-        metadata[`${DIP721_v2_BURN}:burned_by`] = {
+        metadata[`${DIP721_V2_BURN}:burned_by`] = {
           Text: res.Ok.burned_by[0].toText(),
         };
       }
       if (res.Ok.burned_at.length) {
-        metadata[`${DIP721_v2_BURN}:burned_at`] = { Nat: res.Ok.burned_at[0] };
+        metadata[`${DIP721_V2_BURN}:burned_at`] = { Nat: res.Ok.burned_at[0] };
       }
       if (res.Ok.approved_by.length) {
         metadata[`${DIP721_V2_APPROVAL}:approved_by`] = {

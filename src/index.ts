@@ -6,7 +6,7 @@ import { IcpToken } from "./tokens/icpToken";
 import { SldToken } from "./tokens/sldToken";
 import { ExtToken } from "./tokens/extToken";
 import { Dip721V2Token } from "./tokens/dip721V2Token";
-import { Dip721Token } from "./tokens/dip721Token";
+import { Dip721V2BetaToken } from "./tokens/dip721V2BetaToken";
 import { Value } from "./tokens/sld/sld.did";
 
 export interface TokenManagerConfig<S extends string = string>
@@ -20,7 +20,7 @@ export class TokenManager implements Token {
     SldToken,
     ExtToken,
     Dip721V2Token,
-    Dip721Token,
+    Dip721V2BetaToken,
   ];
   private readonly _tokens: (BaseToken & Token)[];
 
@@ -224,24 +224,16 @@ export class TokenManager implements Token {
     return this._getMethod("setRoyaltyFee")(args);
   }
 
-  public async icon() {
-    return this._getMethod("icon")();
-  }
-
   public async logo() {
     return this._getMethod("logo")();
-  }
-
-  public async logoSquare() {
-    return this._getMethod("logoSquare")();
   }
 
   public async assetOf(tokenId: bigint) {
     return this._getMethod("assetOf")(tokenId);
   }
 
-  public async thumbnailOf(tokenId: bigint) {
-    return this._getMethod("thumbnailOf")(tokenId);
+  public async imageOf(tokenId: bigint) {
+    return this._getMethod("imageOf")(tokenId);
   }
 
   public supportsMethod<T extends keyof Token>(method: T) {
@@ -263,5 +255,6 @@ export * from "./tokens/token";
 export * from "./tokens/icpToken";
 export * from "./tokens/sldToken";
 export * from "./tokens/extToken";
-export * from "./tokens/dip721Token";
 export * from "./tokens/dip721V2Token";
+export * from "./tokens/dip721V2BetaToken";
+export * from "./tokens/dip721LegacyToken";

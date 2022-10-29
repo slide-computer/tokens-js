@@ -1,7 +1,12 @@
-import { Value } from "./sld/sld.did";
 import { ActorConfig, ActorSubclass } from "@dfinity/agent";
 import { TokenManagerConfig } from "../index";
 import { Principal } from "@dfinity/principal";
+
+export type Value =
+  | { Int: bigint }
+  | { Nat: bigint }
+  | { Blob: Array<number> }
+  | { Text: string };
 
 export interface Token {
   metadata(): Promise<{ [key: string]: Value }>;
@@ -105,15 +110,17 @@ export interface Token {
 
   setRoyaltyFee(args: { account: string; fee: number }): Promise<bigint>;
 
-  icon(): Promise<string | undefined>;
-
   logo(): Promise<string | undefined>;
 
-  logoSquare(): Promise<string | undefined>;
+  assetOf(tokenId: bigint): Promise<
+    | {
+        location: string;
+        type?: string;
+      }
+    | undefined
+  >;
 
-  assetOf(tokenId: bigint): Promise<string | undefined>;
-
-  thumbnailOf(tokenId: bigint): Promise<string | undefined>;
+  imageOf(tokenId: bigint): Promise<string | undefined>;
 }
 
 export abstract class BaseToken {

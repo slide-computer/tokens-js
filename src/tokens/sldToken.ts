@@ -54,11 +54,9 @@ export class SldToken extends BaseToken implements Partial<Token> {
       this.tokensOf = undefined;
       this.metadataOf = undefined;
       this.transfer = undefined;
-      this.icon = undefined;
       this.logo = undefined;
-      this.logoSquare = undefined;
       this.assetOf = undefined;
-      this.thumbnailOf = undefined;
+      this.imageOf = undefined;
     }
     if (!supportedInterfaces.includes(SLD2)) {
       this.approve = undefined;
@@ -100,11 +98,9 @@ export class SldToken extends BaseToken implements Partial<Token> {
             | "tokensOf"
             | "metadataOf"
             | "transfer"
-            | "icon"
             | "logo"
-            | "logoSquare"
             | "assetOf"
-            | "thumbnailOf"
+            | "imageOf"
           >
         : {}) &
       (T extends typeof SLD2
@@ -139,7 +135,7 @@ export class SldToken extends BaseToken implements Partial<Token> {
     }
   }
 
-  public async metadata?() {
+  public async metadata?(): Promise<{ [key: string]: Value }> {
     return Object.fromEntries(await this._actor.sld1_metadata());
   }
 
@@ -192,7 +188,9 @@ export class SldToken extends BaseToken implements Partial<Token> {
     );
   }
 
-  public async metadataOf?(tokenId: bigint) {
+  public async metadataOf?(
+    tokenId: bigint
+  ): Promise<{ [key: string]: Value } | undefined> {
     const res = await this._actor.sld1_metadata_of(tokenId);
     if (res.length) {
       return Object.fromEntries(res);
@@ -380,13 +378,6 @@ export class SldToken extends BaseToken implements Partial<Token> {
     throw Error(JSON.stringify(res.Err));
   }
 
-  public async icon?() {
-    const metadata = await this.metadata!();
-    if ("sld1:icon" in metadata && "Text" in metadata["sld1:icon"]) {
-      return metadata["sld1:icon"].Text;
-    }
-  }
-
   public async logo?() {
     const metadata = await this.metadata!();
     if ("sld1:logo" in metadata && "Text" in metadata["sld1:logo"]) {
@@ -394,27 +385,29 @@ export class SldToken extends BaseToken implements Partial<Token> {
     }
   }
 
-  public async logoSquare?() {
-    const metadata = await this.metadata!();
-    if (
-      "sld1:logo_square" in metadata &&
-      "Text" in metadata["sld1:logo_square"]
-    ) {
-      return metadata["sld1:logo_square"].Text;
-    }
-  }
-
   public async assetOf?(tokenId: bigint) {
     const metadata = await this.metadataOf!(tokenId);
-    if ("sld1:asset" in metadata && "Text" in metadata["sld1:asset"]) {
-      return metadata["sld1:asset"].Text;
+    if (!metadata) {
+      return;
     }
+    const location =
+      "sld1:asset" in metadata && "Text" in metadata["sld1:asset"]
+        ? metadata["sld1:asset"].Text
+        : undefined;
+    const type =
+      "sld1:asset_type" in metadata && "Text" in metadata["sld1:asset_type"]
+        ? metadata["sld1:asset_type"].Text
+        : undefined;
+    return location !== undefined ? { location, type } : undefined;
   }
 
-  public async thumbnailOf?(tokenId: bigint) {
+  public async imageOf?(tokenId: bigint) {
     const metadata = await this.metadataOf!(tokenId);
-    if ("sld1:thumbnail" in metadata && "Text" in metadata["sld1:thumbnail"]) {
-      return metadata["sld1:thumbnail"].Text;
+    if (!metadata) {
+      return;
+    }
+    if ("sld1:image" in metadata && "Text" in metadata["sld1:image"]) {
+      return metadata["sld1:image"].Text;
     }
   }
 }

@@ -58,7 +58,7 @@ export class ExtToken extends BaseToken implements Partial<Token> {
       this.tokens = undefined;
       this.tokensOf = undefined;
       this.assetOf = undefined;
-      this.thumbnailOf = undefined;
+      this.imageOf = undefined;
     }
   }
 
@@ -101,8 +101,11 @@ export class ExtToken extends BaseToken implements Partial<Token> {
 
   public async metadata?() {
     return {
-      [`${EXT_COMMON}:name`]: { Text: await this.name!() },
-      [`${EXT_COMMON}:symbol`]: { Text: await this.symbol!() },
+      [[EXT_COMMON, "name"].join(":")]: { Text: await this.name!() },
+      [[EXT_COMMON, "symbol"].join(":")]: { Text: await this.symbol!() },
+      [[EXT_COMMON, "total_supply"].join(":")]: {
+        Nat: await this.totalSupply!(),
+      },
     };
   }
 
@@ -271,13 +274,15 @@ export class ExtToken extends BaseToken implements Partial<Token> {
 
   public async assetOf?(tokenId: bigint) {
     const canisterId = Actor.canisterIdOf(this._actor);
-    return `${actorHost(this._actor, true)}/?tokenid=${tokenIdToExtTokenId(
-      canisterId,
-      tokenId
-    )}`;
+    return {
+      location: `${actorHost(this._actor, true)}/?tokenid=${tokenIdToExtTokenId(
+        canisterId,
+        tokenId
+      )}`,
+    };
   }
 
-  public async thumbnailOf?(tokenId: bigint) {
+  public async imageOf?(tokenId: bigint) {
     const canisterId = Actor.canisterIdOf(this._actor);
     return `${actorHost(this._actor, true)}/?tokenid=${tokenIdToExtTokenId(
       canisterId,
