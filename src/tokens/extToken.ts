@@ -201,7 +201,7 @@ export class ExtToken extends BaseToken implements Partial<Token> {
   public async tokensOf?(account: string) {
     const res = await this._actor.tokens(account);
     if ("ok" in res) {
-      res.ok.map((tokenId) => BigInt(tokenId));
+      Array.from(res.ok).map((tokenId) => BigInt(tokenId));
     }
     return [];
   }
