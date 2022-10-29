@@ -44,6 +44,7 @@ export class Dip721LegacyToken extends BaseToken implements Partial<Token> {
       this.tokens = undefined;
       this.tokensOf = undefined;
       this.transfer = undefined;
+      this.logo = undefined;
     }
     if (!supportedInterfaces.includes(DIP721_LEGACY_APPROVAL)) {
       this.approve = undefined;
@@ -66,6 +67,7 @@ export class Dip721LegacyToken extends BaseToken implements Partial<Token> {
             | "tokens"
             | "tokensOf"
             | "transfer"
+            | "logo"
           >
         : {}) &
       (T extends typeof DIP721_LEGACY_APPROVAL
@@ -244,5 +246,9 @@ export class Dip721LegacyToken extends BaseToken implements Partial<Token> {
       return res.Ok;
     }
     throw Error(JSON.stringify(res.Err));
+  }
+
+  public async logo?() {
+    return (await this._actor.logoDip721()).data;
   }
 }

@@ -94,6 +94,7 @@ export class Dip721V2BetaToken extends BaseToken implements Partial<Token> {
       this.transfer = undefined;
       this.getCustodians = undefined;
       this.setCustodian = undefined;
+      this.logo = undefined;
     }
     if (!supportedInterfaces.includes(DIP721_V2_BETA_APPROVAL)) {
       this.approve = undefined;
@@ -120,6 +121,7 @@ export class Dip721V2BetaToken extends BaseToken implements Partial<Token> {
             | "transfer"
             | "getCustodians"
             | "setCustodian"
+            | "logo"
           >
         : {}) &
       (T extends typeof DIP721_V2_BETA_APPROVAL
@@ -397,5 +399,9 @@ export class Dip721V2BetaToken extends BaseToken implements Partial<Token> {
     }
     await this._actor.setCustodians(custodians);
     return BigInt(0);
+  }
+
+  public async logo?() {
+    return (await this._actor.logo())[0];
   }
 }
