@@ -15,6 +15,27 @@ export const DIP721_LEGACY_TRANSACTION_HISTORY =
 export const DIP721_LEGACY_TRANSFER_NOTIFICATION =
   "dip721_legacy_transfer_notification";
 
+export type Dip721LegacyMethods<T extends string | undefined = undefined> =
+  (T extends typeof DIP721_LEGACY
+    ? Pick<
+        Token,
+        | "metadata"
+        | "name"
+        | "symbol"
+        | "totalSupply"
+        | "mintingAccount"
+        | "balanceOf"
+        | "ownerOf"
+        | "tokens"
+        | "tokensOf"
+        | "transfer"
+        | "logo"
+      >
+    : {}) &
+    (T extends typeof DIP721_LEGACY_APPROVAL
+      ? Pick<Token, "approve" | "transferFrom">
+      : {});
+
 export class Dip721LegacyToken extends BaseToken implements Partial<Token> {
   public static readonly implementedInterfaces = [
     DIP721_LEGACY,
@@ -28,7 +49,7 @@ export class Dip721LegacyToken extends BaseToken implements Partial<Token> {
   protected constructor({
     supportedInterfaces = [],
     ...actorConfig
-  }: TokenManagerConfig) {
+  }: TokenManagerConfig<string>) {
     super({ supportedInterfaces, ...actorConfig });
     this._actor = Dip721LegacyToken.createActor(actorConfig);
 
@@ -54,25 +75,7 @@ export class Dip721LegacyToken extends BaseToken implements Partial<Token> {
 
   public static create<T extends string>(config: TokenManagerConfig<T>) {
     return new Dip721LegacyToken(config) as unknown as BaseToken &
-      (T extends typeof DIP721_LEGACY
-        ? Pick<
-            Token,
-            | "metadata"
-            | "name"
-            | "symbol"
-            | "totalSupply"
-            | "mintingAccount"
-            | "balanceOf"
-            | "ownerOf"
-            | "tokens"
-            | "tokensOf"
-            | "transfer"
-            | "logo"
-          >
-        : {}) &
-      (T extends typeof DIP721_LEGACY_APPROVAL
-        ? Pick<Token, "approve" | "transferFrom">
-        : {});
+      Dip721LegacyMethods<T>;
   }
 
   public static createActor(config: ActorConfig): ActorSubclass<_SERVICE> {

@@ -184,3 +184,9 @@ export const urlIsImage = async (url: string): Promise<boolean> => {
   const res = await fetch(url, { method: "HEAD" });
   return !!res.headers.get("Content-Type")?.startsWith("image/");
 };
+
+export type UnionToIntersection<U> = (
+  U extends any ? (k: U) => void : never
+) extends (k: infer I) => void
+  ? I
+  : never;

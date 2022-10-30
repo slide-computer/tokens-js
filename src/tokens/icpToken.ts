@@ -12,6 +12,13 @@ import {
 
 export const ICP = "ICP";
 
+export type IcpMethods<T extends string> = T extends typeof ICP
+  ? Pick<
+      Token,
+      "metadata" | "name" | "symbol" | "decimals" | "balanceOf" | "transfer"
+    >
+  : {};
+
 export class IcpToken extends BaseToken implements Partial<Token> {
   public static canisterIds = [ICP_CANISTER_ID];
   public static readonly implementedInterfaces = [ICP];
@@ -21,7 +28,7 @@ export class IcpToken extends BaseToken implements Partial<Token> {
   protected constructor({
     supportedInterfaces = [],
     ...actorConfig
-  }: TokenManagerConfig) {
+  }: TokenManagerConfig<string>) {
     super({ supportedInterfaces, ...actorConfig });
     this._actor = IcpToken.createActor(actorConfig);
 
@@ -37,18 +44,7 @@ export class IcpToken extends BaseToken implements Partial<Token> {
   }
 
   public static create<T extends string>(config: TokenManagerConfig<T>) {
-    return new IcpToken(config) as unknown as BaseToken &
-      (T extends typeof ICP
-        ? Pick<
-            Token,
-            | "metadata"
-            | "name"
-            | "symbol"
-            | "decimals"
-            | "balanceOf"
-            | "transfer"
-          >
-        : {});
+    return new IcpToken(config) as unknown as BaseToken & IcpMethods<T>;
   }
 
   public static createActor(config: ActorConfig): ActorSubclass<_SERVICE> {

@@ -1,30 +1,36 @@
 import { ActorConfig, HttpAgent } from "@dfinity/agent";
-import { Principal } from "@dfinity/principal";
-import { intersect } from "./utils";
+import { intersect, UnionToIntersection } from "./utils";
 import { BaseToken, Token } from "./tokens/token";
-import { IcpToken } from "./tokens/icpToken";
-import { SldToken } from "./tokens/sldToken";
-import { ExtToken } from "./tokens/extToken";
-import { Dip721V2Token } from "./tokens/dip721V2Token";
-import { Dip721V2BetaToken } from "./tokens/dip721V2BetaToken";
-import { Value } from "./tokens/sld/sld.did";
+import { IcpMethods, IcpToken } from "./tokens/icpToken";
+import { SldMethods, SldToken } from "./tokens/sldToken";
+import { ExtMethods, ExtToken } from "./tokens/extToken";
+import { Dip721V2Methods, Dip721V2Token } from "./tokens/dip721V2Token";
+import {
+  Dip721V2BetaMethods,
+  Dip721V2BetaToken,
+} from "./tokens/dip721V2BetaToken";
+import {
+  Dip721LegacyMethods,
+  Dip721LegacyToken,
+} from "./tokens/dip721LegacyToken";
 
-export interface TokenManagerConfig<S extends string = string>
+export interface TokenManagerConfig<T extends string | undefined = undefined>
   extends ActorConfig {
-  supportedInterfaces?: readonly S[];
+  readonly supportedInterfaces?: T[];
 }
 
-export class TokenManager implements Token {
+export class TokenManager {
   private static readonly _tokens = [
     IcpToken,
     SldToken,
     ExtToken,
     Dip721V2Token,
     Dip721V2BetaToken,
+    Dip721LegacyToken,
   ];
   private readonly _tokens: (BaseToken & Token)[];
 
-  protected constructor(config: TokenManagerConfig) {
+  protected constructor(config: TokenManagerConfig<any>) {
     this._tokens = TokenManager._tokens.reduce((tokens, token) => {
       if (
         intersect(config.supportedInterfaces ?? [], token.implementedInterfaces)
@@ -34,20 +40,74 @@ export class TokenManager implements Token {
       }
       return tokens;
     }, [] as typeof this._tokens);
+    const methods: Array<keyof Token> = [
+      "metadata",
+      "name",
+      "symbol",
+      "decimals",
+      "fee",
+      "totalSupply",
+      "mintingAccount",
+      "balanceOf",
+      "ownerOf",
+      "tokens",
+      "tokensOf",
+      "metadataOf",
+      "transfer",
+      "approve",
+      "setApproval",
+      "getApproved",
+      "setApprovalForAll",
+      "isApprovedForAll",
+      "transferFrom",
+      "allowance",
+      "getCustodians",
+      "setCustodian",
+      "mint",
+      "burn",
+      "royaltyFee",
+      "setRoyaltyFee",
+      "logo",
+      "assetOf",
+      "imageOf",
+    ];
+    methods.forEach((method) => {
+      if (this._tokens.some((t) => method in t)) {
+        // @ts-ignore
+        this[method] = (...args: any[]) => {
+          const token = this._tokens.find((t) => method in t);
+          if (!token) {
+            throw Error("Method not implemented");
+          }
+          // @ts-ignore
+          return token[method].apply(token, args);
+        };
+      }
+    });
   }
 
-  public static async create(config: TokenManagerConfig) {
-    const supportedInterfaces =
-      config.supportedInterfaces ??
-      (await TokenManager.supportedInterfaces(config)).map(({ name }) => name);
-    if (supportedInterfaces.length) {
-      return new TokenManager({
-        ...config,
-        supportedInterfaces: supportedInterfaces,
-      });
+  public static create<
+    T extends string | undefined = undefined,
+    M = T extends string
+      ? IcpMethods<T> &
+          SldMethods<T> &
+          ExtMethods<T> &
+          Dip721V2Methods<T> &
+          Dip721V2BetaMethods<T> &
+          Dip721LegacyMethods<T>
+      : Partial<Token>,
+    R = T extends string ? UnionToIntersection<M> : Promise<M>
+  >(config: TokenManagerConfig<T>): R {
+    if (config.supportedInterfaces) {
+      return new TokenManager(config) as R;
     }
-
-    throw Error("No supported interfaces found for canister");
+    return TokenManager.supportedInterfaces(config).then(
+      (supportedInterfaces) =>
+        new TokenManager({
+          ...config,
+          supportedInterfaces: supportedInterfaces.map(({ name }) => name),
+        })
+    ) as R;
   }
 
   public static async supportedInterfaces(config: ActorConfig) {
@@ -67,185 +127,6 @@ export class TokenManager implements Token {
         )
       )
     ).flat();
-  }
-
-  public async metadata() {
-    return this._getMethod("metadata")();
-  }
-
-  public async name() {
-    return this._getMethod("name")();
-  }
-
-  public async symbol() {
-    return this._getMethod("symbol")();
-  }
-
-  public async decimals() {
-    return this._getMethod("decimals")();
-  }
-
-  public async fee() {
-    return this._getMethod("fee")();
-  }
-
-  public async totalSupply() {
-    return this._getMethod("totalSupply")();
-  }
-
-  public async mintingAccount() {
-    return this._getMethod("mintingAccount")();
-  }
-
-  public async balanceOf(account: string) {
-    return this._getMethod("balanceOf")(account);
-  }
-
-  public async ownerOf(tokenId: bigint) {
-    return this._getMethod("ownerOf")(tokenId);
-  }
-
-  public async tokens(page?: bigint) {
-    return this._getMethod("tokens")(page);
-  }
-
-  public async tokensOf(account: string, page?: bigint) {
-    return this._getMethod("tokensOf")(account, page);
-  }
-
-  public async metadataOf(tokenId: bigint) {
-    return this._getMethod("metadataOf")(tokenId);
-  }
-
-  public async transfer(
-    args: {
-      to: string;
-      fromSubaccount?: Uint8Array | number[] | bigint;
-      memo?: Uint8Array | number[];
-      createdAtTime?: bigint;
-    } & (
-      | {
-          tokenId: bigint;
-        }
-      | { amount: bigint }
-    )
-  ) {
-    return this._getMethod("transfer")(args);
-  }
-
-  public async approve(
-    args: {
-      spender: Principal;
-      approved: boolean;
-      fromSubaccount?: Uint8Array | number[] | bigint;
-      memo?: Uint8Array | number[];
-      createdAtTime?: bigint;
-    } & ({ tokenId: bigint } | { amount: bigint })
-  ) {
-    return this._getMethod("approve")(args);
-  }
-
-  public async setApproval(
-    args: {
-      spender: Principal;
-      approved: boolean;
-      fromSubaccount?: Uint8Array | number[] | bigint;
-      memo?: Uint8Array | number[];
-      createdAtTime?: bigint;
-    } & ({ tokenId: bigint } | { amount: bigint })
-  ) {
-    return this._getMethod("setApproval")(args);
-  }
-
-  public async getApproved(tokenId: bigint) {
-    return this._getMethod("getApproved")(tokenId);
-  }
-
-  public async setApprovalForAll(args: {
-    operator: Principal;
-    approved: boolean;
-    fromSubaccount?: Uint8Array | number[] | bigint;
-    memo?: Uint8Array | number[];
-    createdAtTime?: bigint;
-  }) {
-    return this._getMethod("setApprovalForAll")(args);
-  }
-
-  public async isApprovedForAll(operator: Principal, account: string) {
-    return this._getMethod("isApprovedForAll")(operator, account);
-  }
-
-  public async transferFrom(
-    args: {
-      from: string;
-      to: string;
-      memo?: Uint8Array | number[];
-      createdAtTime?: bigint;
-    } & ({ tokenId: bigint } | { amount: bigint; fee?: bigint })
-  ) {
-    return this._getMethod("transferFrom")(args);
-  }
-
-  public async allowance(args: { account: string; spender: Principal }) {
-    return this._getMethod("allowance")(args);
-  }
-
-  public async getCustodians() {
-    return this._getMethod("getCustodians")();
-  }
-
-  public async setCustodian(args: { custodian: Principal; approved: boolean }) {
-    return this._getMethod("setCustodian")(args);
-  }
-
-  public async mint(args: {
-    to: string;
-    tokenId?: bigint;
-    metadata?: { [key: string]: Value };
-    memo?: Uint8Array | number[];
-    createdAtTime?: bigint;
-  }) {
-    return this._getMethod("mint")(args);
-  }
-
-  public async burn(args: {
-    tokenId: bigint;
-    memo?: Uint8Array | number[];
-    createdAtTime?: bigint;
-  }) {
-    return this._getMethod("burn")(args);
-  }
-
-  public async royaltyFee(amount: bigint) {
-    return this._getMethod("royaltyFee")(amount);
-  }
-
-  public async setRoyaltyFee(args: { account: string; fee: number }) {
-    return this._getMethod("setRoyaltyFee")(args);
-  }
-
-  public async logo() {
-    return this._getMethod("logo")();
-  }
-
-  public async assetOf(tokenId: bigint) {
-    return this._getMethod("assetOf")(tokenId);
-  }
-
-  public async imageOf(tokenId: bigint) {
-    return this._getMethod("imageOf")(tokenId);
-  }
-
-  public supportsMethod<T extends keyof Token>(method: T) {
-    return this._tokens.some((t) => method in t);
-  }
-
-  private _getMethod<T extends keyof Token>(method: T): Token[T] {
-    const token = this._tokens.find((t) => method in t);
-    if (!token) {
-      throw Error("Method not implemented");
-    }
-    return token[method].bind(token) as Token[T];
   }
 }
 

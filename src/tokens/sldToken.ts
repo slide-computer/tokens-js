@@ -29,6 +29,34 @@ export const tokenIdToSldTokenId = (canisterId: Principal, index: bigint) => {
   return Principal.fromUint8Array(array).toText();
 };
 
+export type SldMethods<T extends string | undefined> = (T extends typeof SLD1
+  ? Pick<
+      Token,
+      | "metadata"
+      | "name"
+      | "symbol"
+      | "totalSupply"
+      | "mintingAccount"
+      | "balanceOf"
+      | "ownerOf"
+      | "tokens"
+      | "tokensOf"
+      | "metadataOf"
+      | "transfer"
+      | "logo"
+      | "assetOf"
+      | "imageOf"
+    >
+  : {}) &
+  (T extends typeof SLD2
+    ? Pick<Token, "approve" | "setApproval" | "getApproved" | "transferFrom">
+    : {}) &
+  (T extends typeof SLD4 ? Pick<Token, "mint"> : {}) &
+  (T extends typeof SLD5 ? Pick<Token, "burn"> : {}) &
+  (T extends typeof SLD6 ? Pick<Token, "getCustodians" | "setCustodian"> : {}) &
+  (T extends typeof SLD7 ? Pick<Token, "royaltyFee"> : {}) &
+  (T extends typeof SLD8 ? Pick<Token, "setRoyaltyFee"> : {});
+
 export class SldToken extends BaseToken implements Partial<Token> {
   public static readonly implementedInterfaces = [SLD1, SLD2, SLD4, SLD5];
 
@@ -37,7 +65,7 @@ export class SldToken extends BaseToken implements Partial<Token> {
   protected constructor({
     supportedInterfaces = [],
     ...actorConfig
-  }: TokenManagerConfig) {
+  }: TokenManagerConfig<string>) {
     super({ supportedInterfaces, ...actorConfig });
     this._actor = SldToken.createActor(actorConfig);
 
@@ -83,39 +111,7 @@ export class SldToken extends BaseToken implements Partial<Token> {
   }
 
   public static create<T extends string>(config: TokenManagerConfig<T>) {
-    return new SldToken(config) as unknown as BaseToken &
-      (T extends typeof SLD1
-        ? Pick<
-            Token,
-            | "metadata"
-            | "name"
-            | "symbol"
-            | "totalSupply"
-            | "mintingAccount"
-            | "balanceOf"
-            | "ownerOf"
-            | "tokens"
-            | "tokensOf"
-            | "metadataOf"
-            | "transfer"
-            | "logo"
-            | "assetOf"
-            | "imageOf"
-          >
-        : {}) &
-      (T extends typeof SLD2
-        ? Pick<
-            Token,
-            "approve" | "setApproval" | "getApproved" | "transferFrom"
-          >
-        : {}) &
-      (T extends typeof SLD4 ? Pick<Token, "mint"> : {}) &
-      (T extends typeof SLD5 ? Pick<Token, "burn"> : {}) &
-      (T extends typeof SLD6
-        ? Pick<Token, "getCustodians" | "setCustodian">
-        : {}) &
-      (T extends typeof SLD7 ? Pick<Token, "royaltyFee"> : {}) &
-      (T extends typeof SLD8 ? Pick<Token, "setRoyaltyFee"> : {});
+    return new SldToken(config) as unknown as BaseToken & SldMethods<T>;
   }
 
   public static createActor(config: ActorConfig): ActorSubclass<_SERVICE> {

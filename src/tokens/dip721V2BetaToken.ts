@@ -62,6 +62,32 @@ const flattenMetadataEntry = ([key, value]: [string, GenericValue]): Array<
   throw Error("DIP721 metadata value could not be converted to value");
 };
 
+export type Dip721V2BetaMethods<T extends string | undefined = undefined> =
+  (T extends typeof DIP721_V2_BETA
+    ? Pick<
+        Token,
+        | "metadata"
+        | "name"
+        | "symbol"
+        | "totalSupply"
+        | "mintingAccount"
+        | "balanceOf"
+        | "ownerOf"
+        | "tokens"
+        | "tokensOf"
+        | "transfer"
+        | "getCustodians"
+        | "setCustodian"
+        | "logo"
+      >
+    : {}) &
+    (T extends typeof DIP721_V2_BETA_APPROVAL
+      ? Pick<
+          Token,
+          "approve" | "setApprovalForAll" | "isApprovedForAll" | "transferFrom"
+        >
+      : {});
+
 export class Dip721V2BetaToken extends BaseToken implements Partial<Token> {
   public static readonly implementedInterfaces = [
     DIP721_V2_BETA,
@@ -75,7 +101,7 @@ export class Dip721V2BetaToken extends BaseToken implements Partial<Token> {
   protected constructor({
     supportedInterfaces = [],
     ...actorConfig
-  }: TokenManagerConfig) {
+  }: TokenManagerConfig<string>) {
     super({ supportedInterfaces, ...actorConfig });
     this._actor = Dip721V2BetaToken.createActor(actorConfig);
 
@@ -106,33 +132,7 @@ export class Dip721V2BetaToken extends BaseToken implements Partial<Token> {
 
   public static create<T extends string>(config: TokenManagerConfig<T>) {
     return new Dip721V2BetaToken(config) as unknown as BaseToken &
-      (T extends typeof DIP721_V2_BETA
-        ? Pick<
-            Token,
-            | "metadata"
-            | "name"
-            | "symbol"
-            | "totalSupply"
-            | "mintingAccount"
-            | "balanceOf"
-            | "ownerOf"
-            | "tokens"
-            | "tokensOf"
-            | "transfer"
-            | "getCustodians"
-            | "setCustodian"
-            | "logo"
-          >
-        : {}) &
-      (T extends typeof DIP721_V2_BETA_APPROVAL
-        ? Pick<
-            Token,
-            | "approve"
-            | "setApprovalForAll"
-            | "isApprovedForAll"
-            | "transferFrom"
-          >
-        : {});
+      Dip721V2BetaMethods<T>;
   }
 
   public static createActor(config: ActorConfig): ActorSubclass<_SERVICE> {

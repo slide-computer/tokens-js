@@ -136,9 +136,9 @@ export abstract class BaseToken {
     config: ActorConfig
   ) => Promise<Array<{ name: string; url: string }>>;
 
-  protected readonly _config: TokenManagerConfig;
+  protected readonly _config: TokenManagerConfig<string>;
 
-  protected constructor(config: TokenManagerConfig) {
+  protected constructor(config: TokenManagerConfig<string>) {
     this._config = config;
   }
 }

@@ -30,6 +30,22 @@ export const tokenIdToExtTokenId = (canisterId: Principal, index: bigint) => {
   return Principal.fromUint8Array(array).toText();
 };
 
+export type ExtMethods<T extends string | undefined = undefined> =
+  (T extends typeof EXT_COMMON
+    ? Pick<
+        Token,
+        | "metadata"
+        | "name"
+        | "symbol"
+        | "mintingAccount"
+        | "balanceOf"
+        | "transfer"
+      >
+    : {}) &
+    (T extends typeof EXT_NON_FUNGIBLE
+      ? Pick<Token, "totalSupply" | "ownerOf" | "tokens" | "tokensOf">
+      : {});
+
 export class ExtToken extends BaseToken implements Partial<Token> {
   public static readonly implementedInterfaces = [EXT_COMMON, EXT_NON_FUNGIBLE];
 
@@ -38,7 +54,7 @@ export class ExtToken extends BaseToken implements Partial<Token> {
   protected constructor({
     supportedInterfaces = [],
     ...actorConfig
-  }: TokenManagerConfig) {
+  }: TokenManagerConfig<string>) {
     super({ supportedInterfaces, ...actorConfig });
     this._actor = ExtToken.createActor(actorConfig);
 
@@ -63,21 +79,7 @@ export class ExtToken extends BaseToken implements Partial<Token> {
   }
 
   public static create<T extends string>(config: TokenManagerConfig<T>) {
-    return new ExtToken(config) as unknown as BaseToken &
-      (T extends typeof EXT_COMMON
-        ? Pick<
-            Token,
-            | "metadata"
-            | "name"
-            | "symbol"
-            | "mintingAccount"
-            | "balanceOf"
-            | "transfer"
-          >
-        : {}) &
-      (T extends typeof EXT_NON_FUNGIBLE
-        ? Pick<Token, "totalSupply" | "ownerOf" | "tokens" | "tokensOf">
-        : {});
+    return new ExtToken(config) as unknown as BaseToken & ExtMethods<T>;
   }
 
   public static createActor(config: ActorConfig): ActorSubclass<_SERVICE> {
