@@ -181,7 +181,7 @@ export class ExtToken extends BaseToken implements Partial<Token> {
 
   public async balanceOf?(account: string) {
     // Count tokens to get balance
-    const res = await this._actor.tokens(account);
+    const res = await this._actor.tokens(accountHashFromString(account));
     if ("ok" in res) {
       return BigInt(res.ok.length);
     }
