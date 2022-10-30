@@ -197,7 +197,7 @@ export class ExtToken extends BaseToken implements Partial<Token> {
   public async tokens?() {
     return (await this._actor.getTokens())
       .map(([tokenId]) => BigInt(tokenId))
-      .sort();
+      .sort((a, b) => (a > b ? 1 : a < b ? -1 : 0));
   }
 
   public async tokensOf?(account: string) {
@@ -205,7 +205,7 @@ export class ExtToken extends BaseToken implements Partial<Token> {
     if ("ok" in res) {
       return Array.from(res.ok)
         .map((tokenId) => BigInt(tokenId))
-        .sort();
+        .sort((a, b) => (a > b ? 1 : a < b ? -1 : 0));
     }
     return [];
   }
