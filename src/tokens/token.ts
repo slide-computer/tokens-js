@@ -9,7 +9,7 @@ export type Value =
   | { Text: string };
 
 export interface Token {
-  metadata(): Promise<{ [key: string]: Value }>;
+  metadata(): Promise<Array<{ key: string; value: Value }> | undefined>;
 
   name(): Promise<string>;
 
@@ -31,7 +31,9 @@ export interface Token {
 
   tokensOf(account: string, page?: bigint): Promise<bigint[]>;
 
-  metadataOf(tokenId?: bigint): Promise<{ [key: string]: Value } | undefined>;
+  metadataOf(
+    tokenId?: bigint
+  ): Promise<Array<{ key: string; value: Value }> | undefined>;
 
   transfer(
     args: {
@@ -121,6 +123,15 @@ export interface Token {
   >;
 
   imageOf(tokenId: bigint): Promise<string | undefined>;
+
+  attributesOf(tokenId: bigint): Promise<
+    | Array<{
+        value: Value;
+        traitType?: string;
+        displayType?: string;
+      }>
+    | undefined
+  >;
 }
 
 export abstract class BaseToken {

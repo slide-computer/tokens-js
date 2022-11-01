@@ -181,8 +181,12 @@ export const urlIsImage = async (url: string): Promise<boolean> => {
   }
 
   // This isn't an issue outside the browser
-  const res = await fetch(url, { method: "HEAD" });
-  return !!res.headers.get("Content-Type")?.startsWith("image/");
+  try {
+    const res = await fetch(url, { method: "HEAD" });
+    return !!res.headers.get("Content-Type")?.startsWith("image/");
+  } catch (_) {
+    return false;
+  }
 };
 
 export type UnionToIntersection<U> = (

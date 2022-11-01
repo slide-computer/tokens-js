@@ -3,7 +3,7 @@ import { _SERVICE } from "./dip721Legacy/dip721Legacy.did";
 import { idlFactory } from "./dip721Legacy";
 import { principalFromString } from "../utils";
 import { TokenManagerConfig } from "../index";
-import { BaseToken, Token, Value } from "./token";
+import { BaseToken, Token } from "./token";
 import { Principal } from "@dfinity/principal";
 
 export const DIP721_LEGACY = "dip721_legacy";
@@ -112,14 +112,15 @@ export class Dip721LegacyToken extends BaseToken implements Partial<Token> {
     }
   }
 
-  public async metadata?(): Promise<{ [key: string]: Value }> {
-    return {
-      [[DIP721_LEGACY, "name"].join(":")]: { Text: await this.name!() },
-      [[DIP721_LEGACY, "symbol"].join(":")]: { Text: await this.symbol!() },
-      [[DIP721_LEGACY, "total_supply"].join(":")]: {
-        Nat: await this.totalSupply!(),
+  public async metadata?() {
+    return [
+      { key: `${DIP721_LEGACY}:name`, value: { Text: await this.name!() } },
+      { key: `${DIP721_LEGACY}:symbol`, value: { Text: await this.symbol!() } },
+      {
+        key: `${DIP721_LEGACY}:total_supply`,
+        value: { Nat: await this.totalSupply!() },
       },
-    };
+    ];
   }
 
   public async name?() {
@@ -169,13 +170,13 @@ export class Dip721LegacyToken extends BaseToken implements Partial<Token> {
   public async metadataOf?(tokenId: bigint) {
     const res = await this._actor.getMetadataDip721(tokenId);
     return "Ok" in res
-      ? Object.fromEntries(
-          res.Ok.map((part) => {
-            const purpose = "Preview" in part.purpose ? "preview" : "rendered";
-            return [
-              [purpose, { Blob: part.data }],
-              ...part.key_val_data.map(({ key, val }) => [
-                [purpose, key].join(":"),
+      ? res.Ok.map((part) => {
+          const purpose = "Preview" in part.purpose ? "preview" : "rendered";
+          return [
+            { key: purpose, value: { Blob: part.data } },
+            ...part.key_val_data.map(({ key, val }) => ({
+              key: `${purpose}:${key}`,
+              value:
                 "TextContent" in val
                   ? { Text: val.TextContent }
                   : "BlobContent" in val
@@ -189,10 +190,9 @@ export class Dip721LegacyToken extends BaseToken implements Partial<Token> {
                   : "Nat8Content" in val
                   ? { Nat: BigInt(val["Nat8Content"]) }
                   : { Nat: val["NatContent"] },
-              ]),
-            ] as Array<[string, Value]>;
-          }).flat()
-        )
+            })),
+          ];
+        }).flat()
       : undefined;
   }
 

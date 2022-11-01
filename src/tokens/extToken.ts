@@ -43,7 +43,16 @@ export type ExtMethods<T extends string | undefined = undefined> =
       >
     : {}) &
     (T extends typeof EXT_NON_FUNGIBLE
-      ? Pick<Token, "totalSupply" | "ownerOf" | "tokens" | "tokensOf">
+      ? Pick<
+          Token,
+          | "totalSupply"
+          | "ownerOf"
+          | "tokens"
+          | "tokensOf"
+          | "assetOf"
+          | "imageOf"
+          | "attributesOf"
+        >
       : {});
 
 export class ExtToken extends BaseToken implements Partial<Token> {
@@ -75,6 +84,7 @@ export class ExtToken extends BaseToken implements Partial<Token> {
       this.tokensOf = undefined;
       this.assetOf = undefined;
       this.imageOf = undefined;
+      this.attributesOf = undefined;
     }
   }
 
@@ -102,13 +112,14 @@ export class ExtToken extends BaseToken implements Partial<Token> {
   }
 
   public async metadata?() {
-    return {
-      [[EXT_COMMON, "name"].join(":")]: { Text: await this.name!() },
-      [[EXT_COMMON, "symbol"].join(":")]: { Text: await this.symbol!() },
-      [[EXT_COMMON, "total_supply"].join(":")]: {
-        Nat: await this.totalSupply!(),
+    return [
+      { key: `${EXT_COMMON}:name`, value: { Text: await this.name!() } },
+      { key: `${EXT_COMMON}:symbol`, value: { Text: await this.symbol!() } },
+      {
+        key: `${EXT_COMMON}:total_supply`,
+        value: { Text: await this.totalSupply!() },
       },
-    };
+    ];
   }
 
   public async name?() {
@@ -294,5 +305,33 @@ export class ExtToken extends BaseToken implements Partial<Token> {
       canisterId,
       tokenId
     )}&type=thumbnail`;
+  }
+
+  public async attributesOf?(tokenId: bigint) {
+    const canisterId = Actor.canisterIdOf(this._actor);
+    const filter = await fetch(
+      `https://entrepot.app/filter/${canisterId.toText()}.json`
+    )
+      .then((res) => res.json())
+      .catch(() => undefined);
+    if (!filter) {
+      return;
+    }
+    return filter[1]
+      .find(([tokenIndex]: [number]) => tokenIndex === Number(tokenId))?.[1]
+      ?.map(([traitTypeIndex, valueIndex]: [number, number]) => {
+        const trait = filter[0].find(
+          ([_traitTypeIndex]: [number]) => _traitTypeIndex === traitTypeIndex
+        );
+        return {
+          value: {
+            Text:
+              trait?.[2]?.find(
+                ([_valueIndex]: [number]) => _valueIndex === valueIndex
+              )?.[1] ?? "",
+          },
+          traitType: trait?.[1] && { Text: trait?.[1] },
+        };
+      });
   }
 }

@@ -46,6 +46,7 @@ export type SldMethods<T extends string | undefined> = (T extends typeof SLD1
       | "logo"
       | "assetOf"
       | "imageOf"
+      | "attributesOf"
     >
   : {}) &
   (T extends typeof SLD2
@@ -85,6 +86,7 @@ export class SldToken extends BaseToken implements Partial<Token> {
       this.logo = undefined;
       this.assetOf = undefined;
       this.imageOf = undefined;
+      this.attributesOf = undefined;
     }
     if (!supportedInterfaces.includes(SLD2)) {
       this.approve = undefined;
@@ -131,8 +133,11 @@ export class SldToken extends BaseToken implements Partial<Token> {
     }
   }
 
-  public async metadata?(): Promise<{ [key: string]: Value }> {
-    return Object.fromEntries(await this._actor.sld1_metadata());
+  public async metadata?() {
+    return (await this._actor.sld1_metadata()).map(([key, value]) => ({
+      key,
+      value,
+    }));
   }
 
   public async name?() {
@@ -184,12 +189,10 @@ export class SldToken extends BaseToken implements Partial<Token> {
     );
   }
 
-  public async metadataOf?(
-    tokenId: bigint
-  ): Promise<{ [key: string]: Value } | undefined> {
+  public async metadataOf?(tokenId: bigint) {
     const res = await this._actor.sld1_metadata_of(tokenId);
     if (res.length) {
-      return Object.fromEntries(res);
+      return res[0].map(([key, value]) => ({ key, value }));
     }
   }
 
@@ -376,10 +379,8 @@ export class SldToken extends BaseToken implements Partial<Token> {
 
   public async logo?() {
     const metadata = await this.metadata!();
-    const key = `${SLD1}:logo` as const;
-    if (key in metadata && "Text" in metadata[key]) {
-      return metadata[key].Text;
-    }
+    const entry = metadata?.find(({ key }) => key === `${SLD1}:logo`);
+    return entry && "Text" in entry.value ? entry.value.Text : undefined;
   }
 
   public async assetOf?(tokenId: bigint) {
@@ -387,16 +388,14 @@ export class SldToken extends BaseToken implements Partial<Token> {
     if (!metadata) {
       return;
     }
-    const locationKey = `${SLD1}:asset` as const;
+    const locationEntry = metadata.find(({ key }) => key === `${SLD1}:asset`);
     const location =
-      locationKey in metadata && "Text" in metadata[locationKey]
-        ? metadata[locationKey].Text
+      locationEntry && "Text" in locationEntry.value
+        ? locationEntry.value.Text
         : undefined;
-    const typeKey = `${SLD1}:asset_type` as const;
+    const typeEntry = metadata.find(({ key }) => key === `${SLD1}:asset_type`);
     const type =
-      typeKey in metadata && "Text" in metadata[typeKey]
-        ? metadata[typeKey].Text
-        : undefined;
+      typeEntry && "Text" in typeEntry.value ? typeEntry.value.Text : undefined;
     return location !== undefined ? { location, type } : undefined;
   }
 
@@ -405,9 +404,32 @@ export class SldToken extends BaseToken implements Partial<Token> {
     if (!metadata) {
       return;
     }
-    const key = `${SLD1}:image` as const;
-    if (key in metadata && "Text" in metadata[key]) {
-      return metadata[key].Text;
+    const entry = metadata.find(({ key }) => key === `${SLD1}:image`);
+    return entry && "Text" in entry.value ? entry.value.Text : undefined;
+  }
+
+  /**
+   * SLD token attributes key format:
+   * - SLD1:attributes
+   * - SLD1:attributes:<traitType>
+   * - SLD1:attributes:<traitType>:<displayType>
+   * - SLD1:attributes::<displayType>
+   * @param tokenId
+   */
+  public async attributesOf?(tokenId: bigint) {
+    const metadata = await this.metadataOf!(tokenId);
+    if (!metadata) {
+      return;
     }
+    const keyRegExp = new RegExp(`^${SLD1}:attribute(:[^:]+)?$`);
+    const traitTypeRegExp = new RegExp(`^${SLD1}:attribute:([^:]+)$`);
+    const displayTypeRegExp = new RegExp(`^${SLD1}:attribute:[^:]*:([^:]+)$`);
+    return metadata
+      .filter(({ key }) => keyRegExp.test(key))
+      .map(({ key, value }) => {
+        const traitType = traitTypeRegExp.exec(key)?.[1];
+        const displayType = displayTypeRegExp.exec(key)?.[1];
+        return { value, traitType, displayType };
+      });
   }
 }

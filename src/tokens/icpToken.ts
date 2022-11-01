@@ -64,12 +64,15 @@ export class IcpToken extends BaseToken implements Partial<Token> {
   }
 
   public async metadata?() {
-    return {
-      [`${ICP}:name`]: { Text: await this.name!() },
-      [`${ICP}:symbol`]: { Text: await this.symbol!() },
-      [`${ICP}:decimals`]: { Nat: BigInt(await this.decimals!()) },
-      [`${ICP}:fee`]: { Nat: BigInt(await this.fee!()) },
-    };
+    return [
+      { key: `${ICP}:name`, value: { Text: await this.name!() } },
+      { key: `${ICP}:symbol`, value: { Text: await this.symbol!() } },
+      {
+        key: `${ICP}:decimals`,
+        value: { Nat: BigInt(await this.decimals!()) },
+      },
+      { key: `${ICP}:fee`, value: { Nat: BigInt(await this.fee!()) } },
+    ];
   }
 
   public async name?() {

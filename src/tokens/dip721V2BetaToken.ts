@@ -2,7 +2,7 @@ import { Actor, ActorConfig, ActorSubclass } from "@dfinity/agent";
 import { _SERVICE, GenericValue } from "./dip721V2Beta/dip721V2Beta.did";
 import { idlFactory } from "./dip721V2Beta";
 import { principalFromString } from "../utils";
-import { TokenManagerConfig } from "../index";
+import { DIP721_V2, TokenManagerConfig } from "../index";
 import { BaseToken, Token } from "./token";
 import { Principal } from "@dfinity/principal";
 import { Value } from "./sld/sld.did";
@@ -12,9 +12,10 @@ export const DIP721_V2_BETA_MINT = "dip721_v2_beta_mint";
 export const DIP721_V2_BETA_BURN = "dip721_v2_beta_burn";
 export const DIP721_V2_BETA_APPROVAL = "dip721_v2_beta_approval";
 
-const flattenMetadataEntry = ([key, value]: [string, GenericValue]): Array<
-  [string, Value]
-> => {
+const flattenMetadataEntry = ([key, value]: [string, GenericValue]): Array<{
+  key: string;
+  value: Value;
+}> => {
   const natValueKey = (
     [
       "NatContent",
@@ -25,7 +26,7 @@ const flattenMetadataEntry = ([key, value]: [string, GenericValue]): Array<
     ] as Array<keyof GenericValue>
   ).find((k) => k in value);
   if (natValueKey) {
-    return [[key, { Nat: BigInt(value[natValueKey]) }]];
+    return [{ key, value: { Nat: BigInt(value[natValueKey]) } }];
   }
   const intValueKey = (
     [
@@ -37,31 +38,30 @@ const flattenMetadataEntry = ([key, value]: [string, GenericValue]): Array<
     ] as Array<keyof GenericValue>
   ).find((k) => k in value);
   if (intValueKey) {
-    return [[key, { Int: BigInt(value[intValueKey]) }]];
+    return [{ key, value: { Nat: BigInt(value[intValueKey]) } }];
   }
   if ("FloatContent" in value) {
-    return [[key, { Text: value.FloatContent.toString() }]];
+    return [{ key, value: { Text: value.FloatContent.toString() } }];
   }
   if ("BoolContent" in value) {
-    return [[key, { Nat: BigInt(value.BoolContent ? 1 : 0) }]];
+    return [{ key, value: { Nat: BigInt(value.BoolContent ? 1 : 0) } }];
   }
   if ("BlobContent" in value) {
-    return [[key, { Blob: value.BlobContent }]];
+    return [{ key, value: { Blob: value.BlobContent } }];
   }
   if ("Principal" in value) {
-    return [[key, { Text: value.Principal.toText() }]];
+    return [{ key, value: { Text: value.Principal.toText() } }];
   }
   if ("TextContent" in value) {
-    return [[key, { Text: value.TextContent }]];
+    return [{ key, value: { Text: value.TextContent } }];
   }
   if ("NestedContent" in value) {
     return value.NestedContent.map(([nestedKey, nestedValue]) =>
       flattenMetadataEntry([key + ":" + nestedKey, nestedValue])
     ).flat();
   }
-  throw Error("DIP721 metadata value could not be converted to value");
+  throw Error("DIP721 V2 Beta metadata value could not be converted to value");
 };
-
 export type Dip721V2BetaMethods<T extends string | undefined = undefined> =
   (T extends typeof DIP721_V2_BETA
     ? Pick<
@@ -167,23 +167,29 @@ export class Dip721V2BetaToken extends BaseToken implements Partial<Token> {
 
   public async metadata?() {
     const res = await this._actor.metadata();
-    const metadata: { [key: string]: Value } = {};
+    const metadata: Array<{ key: string; value: Value }> = [
+      { key: `${DIP721_V2_BETA}:created_at`, value: { Nat: res.created_at } },
+      { key: `${DIP721_V2_BETA}:upgraded_at`, value: { Nat: res.upgraded_at } },
+      ...res.custodians.map((custodian) => ({
+        key: `${DIP721_V2_BETA}:custodians`,
+        value: { Text: custodian.toText() },
+      })),
+    ];
     if (res.name.length) {
-      metadata[`${DIP721_V2_BETA}:name`] = { Text: res.name[0] };
+      metadata.push({ key: `${DIP721_V2}:name`, value: { Text: res.name[0] } });
     }
     if (res.symbol.length) {
-      metadata[`${DIP721_V2_BETA}:symbol`] = { Text: res.symbol[0] };
+      metadata.push({
+        key: `${DIP721_V2}:symbol`,
+        value: { Text: res.symbol[0] },
+      });
     }
     if (res.logo.length) {
-      metadata[`${DIP721_V2_BETA}:symbol`] = { Text: res.logo[0] };
+      metadata.push({
+        key: `${DIP721_V2_BETA}:logo`,
+        value: { Text: res.logo[0] },
+      });
     }
-    metadata[`${DIP721_V2_BETA}:created_at`] = { Nat: res.created_at };
-    metadata[`${DIP721_V2_BETA}:upgraded_at`] = { Nat: res.upgraded_at };
-    res.custodians.forEach((custodian, index) => {
-      metadata[`${DIP721_V2_BETA}:custodians:${index}`] = {
-        Text: custodian.toText(),
-      };
-    });
     return metadata;
   }
 
@@ -237,71 +243,96 @@ export class Dip721V2BetaToken extends BaseToken implements Partial<Token> {
   public async metadataOf?(tokenId: bigint) {
     const res = await this._actor.tokenMetadata(tokenId);
     if ("Ok" in res) {
-      const metadata: { [key: string]: Value } = {
-        [`${DIP721_V2_BETA}:token_identifier`]: {
-          Nat: res.Ok.token_identifier,
+      const metadata: Array<{ key: string; value: Value }> = [
+        {
+          key: `${DIP721_V2_BETA}:token_identifier`,
+          value: { Nat: res.Ok.token_identifier },
         },
-        [`${DIP721_V2_BETA_MINT}:minted_by`]: {
-          Text: res.Ok.minted_by.toText(),
+        {
+          key: `${DIP721_V2_BETA}:minted_by`,
+          value: { Text: res.Ok.minted_by.toText() },
         },
-        [`${DIP721_V2_BETA_MINT}:minted_at`]: { Nat: res.Ok.minted_at },
-        [`${DIP721_V2_BETA_BURN}:is_burned`]: {
-          Nat: BigInt(res.Ok.is_burned ? 1 : 0),
+        {
+          key: `${DIP721_V2_BETA}:minted_at`,
+          value: { Nat: res.Ok.minted_at },
         },
-      };
+        {
+          key: `${DIP721_V2_BETA}:is_burned`,
+          value: { Nat: BigInt(res.Ok.is_burned ? 1 : 0) },
+        },
+      ];
       if (res.Ok.owner.length) {
-        metadata[`${DIP721_V2_BETA}:owner`] = {
-          Text: res.Ok.owner[0].toText(),
-        };
+        metadata.push({
+          key: `${DIP721_V2_BETA}:owner`,
+          value: {
+            Text: res.Ok.owner[0].toText(),
+          },
+        });
       }
       if (res.Ok.transferred_by.length) {
-        metadata[`${DIP721_V2_BETA}:transferred_by`] = {
-          Text: res.Ok.transferred_by[0].toText(),
-        };
+        metadata.push({
+          key: `${DIP721_V2_BETA}:transferred_by`,
+          value: {
+            Text: res.Ok.transferred_by[0].toText(),
+          },
+        });
       }
       if (res.Ok.transferred_at.length) {
-        metadata[`${DIP721_V2_BETA}:transferred_at`] = {
-          Nat: res.Ok.transferred_at[0],
-        };
+        metadata.push({
+          key: `${DIP721_V2_BETA}:transferred_at`,
+          value: {
+            Nat: res.Ok.transferred_at[0],
+          },
+        });
       }
       if (res.Ok.burned_by.length) {
-        metadata[`${DIP721_V2_BETA_BURN}:burned_by`] = {
-          Text: res.Ok.burned_by[0].toText(),
-        };
+        metadata.push({
+          key: `${DIP721_V2_BETA}:burned_by`,
+          value: {
+            Text: res.Ok.burned_by[0].toText(),
+          },
+        });
       }
       if (res.Ok.burned_at.length) {
-        metadata[`${DIP721_V2_BETA_BURN}:burned_at`] = {
-          Nat: res.Ok.burned_at[0],
-        };
+        metadata.push({
+          key: `${DIP721_V2_BETA}:burned_at`,
+          value: {
+            Nat: res.Ok.burned_at[0],
+          },
+        });
       }
       if (res.Ok.approved_by.length) {
-        metadata[`${DIP721_V2_BETA_APPROVAL}:approved_by`] = {
-          Text: res.Ok.approved_by[0].toText(),
-        };
+        metadata.push({
+          key: `${DIP721_V2_BETA}:approved_by`,
+          value: {
+            Text: res.Ok.approved_by[0].toText(),
+          },
+        });
       }
       if (res.Ok.approved_at.length) {
-        metadata[`${DIP721_V2_BETA_APPROVAL}:approved_at`] = {
-          Nat: res.Ok.approved_at[0],
-        };
+        metadata.push({
+          key: `${DIP721_V2_BETA}:approved_at`,
+          value: {
+            Nat: res.Ok.approved_at[0],
+          },
+        });
       }
       if (res.Ok.operator.length) {
-        metadata[`${DIP721_V2_BETA_APPROVAL}:operator`] = {
-          Text: res.Ok.operator[0].toText(),
-        };
+        metadata.push({
+          key: `${DIP721_V2_BETA}:operator`,
+          value: {
+            Text: res.Ok.operator[0].toText(),
+          },
+        });
       }
-      return {
+      return [
         ...metadata,
-        ...Object.fromEntries(
-          res.Ok.properties
-            .map(([key, value]) =>
-              flattenMetadataEntry([
-                `${DIP721_V2_BETA}:properties:${key}`,
-                value,
-              ])
-            )
-            .flat()
-        ),
-      };
+        ...res.Ok.properties
+          .map(([key, value]) =>
+            flattenMetadataEntry([`${DIP721_V2_BETA}:properties:${key}`, value])
+          )
+          .flat(),
+      ];
     }
   }
 
@@ -410,10 +441,12 @@ export class Dip721V2BetaToken extends BaseToken implements Partial<Token> {
     if (!metadata) {
       return;
     }
-    const key = `${DIP721_V2_BETA}:properties:location` as const;
-    if (key in metadata && "Text" in metadata[key]) {
-      return { location: metadata[key].Text };
-    }
+    const entry = metadata.find(
+      ({ key }) => key === `${DIP721_V2_BETA}:properties:location`
+    );
+    return entry && "Text" in entry.value
+      ? { location: entry.value.Text }
+      : undefined;
   }
 
   public async imageOf?(tokenId: bigint) {
@@ -421,9 +454,25 @@ export class Dip721V2BetaToken extends BaseToken implements Partial<Token> {
     if (!metadata) {
       return;
     }
-    const key = `${DIP721_V2_BETA}:properties:thumbnail` as const;
-    if (key in metadata && "Text" in metadata[key]) {
-      return metadata[key].Text;
+    const entry = metadata.find(
+      ({ key }) => key === `${DIP721_V2_BETA}:properties:thumbnail`
+    );
+    return entry && "Text" in entry.value ? entry.value.Text : undefined;
+  }
+
+  public async attributesOf?(tokenId: bigint) {
+    const metadata = await this.metadataOf!(tokenId);
+    if (!metadata) {
+      return;
     }
+    const traitTypeRegExp = new RegExp(
+      `^${DIP721_V2_BETA}:properties:(?!location$)(?!thumbnail$)([^:]+$)`
+    );
+    return metadata
+      .filter(({ key }) => traitTypeRegExp.test(key))
+      .map(({ key, value }) => {
+        const traitType = traitTypeRegExp.exec(key)![1];
+        return { value, traitType };
+      });
   }
 }

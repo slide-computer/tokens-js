@@ -70,6 +70,7 @@ export class TokenManager {
       "logo",
       "assetOf",
       "imageOf",
+      "attributesOf",
     ];
     methods.forEach((method) => {
       if (this._tokens.some((t) => method in t)) {
