@@ -1,11 +1,11 @@
-import type { Principal } from '@dfinity/principal';
-import type { ActorMethod } from '@dfinity/agent';
+import type { Principal } from "@dfinity/principal";
+import type { ActorMethod } from "@dfinity/agent";
 
 export interface AccountBalanceArgs {
   account: AccountIdentifier;
 }
 
-export type AccountIdentifier = Array<number>;
+export type AccountIdentifier = Uint8Array;
 
 export interface Archive {
   canister_id: Principal;
@@ -18,7 +18,7 @@ export interface Archives {
 export interface Block {
   transaction: Transaction;
   timestamp: TimeStamp;
-  parent_hash: [] | [Array<number>];
+  parent_hash: [] | [Uint8Array];
 }
 
 export type BlockIndex = bigint;
@@ -60,7 +60,7 @@ export type QueryArchiveResult =
   | { Err: QueryArchiveError };
 
 export interface QueryBlocksResponse {
-  certificate: [] | [Array<number>];
+  certificate: [] | [Uint8Array];
   blocks: Array<Block>;
   chain_length: bigint;
   first_block_index: BlockIndex;
@@ -71,7 +71,7 @@ export interface QueryBlocksResponse {
   }>;
 }
 
-export type SubAccount = Array<number>;
+export type SubAccount = Uint8Array;
 
 export interface TimeStamp {
   timestamp_nanos: bigint;

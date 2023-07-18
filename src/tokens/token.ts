@@ -1,15 +1,10 @@
 import { ActorConfig, ActorSubclass } from "@dfinity/agent";
 import { TokenManagerConfig } from "../index";
 import { Principal } from "@dfinity/principal";
-
-export type Value =
-  | { Int: bigint }
-  | { Nat: bigint }
-  | { Blob: Array<number> }
-  | { Text: string };
+import { Value } from "./icrc1/icrc1.did";
 
 export interface Token {
-  metadata(): Promise<Array<{ key: string; value: Value }> | undefined>;
+  metadata(): Promise<Array<[string, Value]> | undefined>;
 
   name(): Promise<string>;
 
@@ -31,37 +26,32 @@ export interface Token {
 
   tokensOf(account: string, page?: bigint): Promise<bigint[]>;
 
-  metadataOf(
-    tokenId?: bigint
-  ): Promise<Array<{ key: string; value: Value }> | undefined>;
+  metadataOf(tokenId?: bigint): Promise<Array<[string, Value]> | undefined>;
 
   transfer(
     args: {
+      fromSubaccount?: Uint8Array;
       to: string;
-      fromSubaccount?: Uint8Array | number[] | bigint;
-      memo?: Uint8Array | number[];
+      memo?: Uint8Array;
       createdAtTime?: bigint;
     } & ({ tokenId: bigint } | { amount: bigint; fee?: bigint })
   ): Promise<bigint>;
 
   approve(
     args: {
-      spender: Principal;
-      approved: boolean;
-      fromSubaccount?: Uint8Array | number[] | bigint;
-      memo?: Uint8Array | number[];
+      fromSubaccount?: Uint8Array;
+      spender: string;
+      memo?: Uint8Array;
       createdAtTime?: bigint;
-    } & ({ tokenId: bigint } | { amount: bigint; fee?: bigint })
-  ): Promise<bigint>;
-
-  setApproval(
-    args: {
-      spender: Principal;
-      approved: boolean;
-      fromSubaccount?: Uint8Array | number[] | bigint;
-      memo?: Uint8Array | number[];
-      createdAtTime?: bigint;
-    } & ({ tokenId: bigint } | { amount: bigint; fee?: bigint })
+    } & (
+      | { tokenId: bigint; approved: boolean }
+      | {
+          amount: bigint;
+          expectedAllowance?: bigint;
+          expiresAt?: bigint;
+          fee?: bigint;
+        }
+    )
   ): Promise<bigint>;
 
   getApproved(tokenId: bigint): Promise<Principal[]>;
@@ -78,14 +68,18 @@ export interface Token {
 
   transferFrom(
     args: {
+      spenderSubaccount?: Uint8Array;
       from: string;
       to: string;
-      memo?: Uint8Array | number[];
+      memo?: Uint8Array;
       createdAtTime?: bigint;
     } & ({ tokenId: bigint } | { amount: bigint; fee?: bigint })
   ): Promise<bigint>;
 
-  allowance(args: { account: string; spender: Principal }): Promise<bigint>;
+  allowance(args: {
+    account: string;
+    spender: string;
+  }): Promise<{ allowance: bigint; expiresAt?: bigint }>;
 
   mint(args: {
     to: string;
@@ -134,20 +128,26 @@ export interface Token {
   >;
 }
 
-export abstract class BaseToken {
-  public static readonly implementedInterfaces: string[];
+export type AccountType = "account" | "principal" | "hash";
+export type TokenType = "fungible" | "nonFungible";
 
-  public static create: <T extends string>(
+export abstract class BaseToken {
+  static implementedStandards: readonly string[];
+  static accountType: AccountType;
+
+  static create: <T extends string>(
     config: TokenManagerConfig<T>
   ) => BaseToken & Partial<Token>;
 
-  public static createActor: (config: ActorConfig) => ActorSubclass<any>;
+  static createActor: (config: ActorConfig) => ActorSubclass<any>;
 
-  public static supportedInterfaces: (
+  static supportedStandards: (
     config: ActorConfig
   ) => Promise<Array<{ name: string; url: string }>>;
 
-  protected readonly _config: TokenManagerConfig<string>;
+  static tokenType: (supportedStandard: string[]) => TokenType;
+
+  protected _config: TokenManagerConfig<string>;
 
   protected constructor(config: TokenManagerConfig<string>) {
     this._config = config;

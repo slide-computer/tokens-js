@@ -1,12 +1,12 @@
 {
   "name": "@slide-computer/tokens",
-  "version": "1.6.0",
+  "version": "1.7.22",
   "description": "Manage tokens on the Internet Computer",
   "main": "./lib/cjs/index.js",
   "module": "./lib/esm/index.js",
   "unpkg": "./lib/esm/index",
   "scripts": {
-    "build": "tsc -b && tsc -p tsconfig-cjs.json"
+    "build": "tsc -b && tsc -p tsconfig-cjs.json && rm ./lib/*/logos/*.js.map && rm ./lib/*/logos/*.d.ts"
   },
   "repository": {
     "type": "git",
@@ -19,8 +19,9 @@
   },
   "homepage": "https://github.com/slide-computer/tokens-js#readme",
   "dependencies": {
-    "@dfinity/agent": "^0.14.0",
-    "@dfinity/principal": "^0.14.0",
+    "@dfinity/agent": "0.15.4",
+    "@dfinity/principal": "0.15.4",
+    "@dfinity/candid": "0.15.4",
     "buffer": "^6.0.3",
     "buffer-crc32": "^0.2.13",
     "js-sha256": "^0.9.0"

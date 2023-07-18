@@ -1,28 +1,36 @@
 import { ActorConfig, HttpAgent } from "@dfinity/agent";
 import { intersect, UnionToIntersection } from "./utils";
-import { BaseToken, Token } from "./tokens/token";
-import { IcpMethods, IcpToken } from "./tokens/icpToken";
-import { SldMethods, SldToken } from "./tokens/sldToken";
-import { ExtMethods, ExtToken } from "./tokens/extToken";
-import { Dip721V2Methods, Dip721V2Token } from "./tokens/dip721V2Token";
+import { AccountType, BaseToken, Token, TokenType } from "./tokens/token";
+import { ICP_TYPE, IcpMethods, IcpToken } from "./tokens/icpToken";
+// import { SLD_TYPE, SldMethods, SldToken } from "./tokens/sldToken";
+import { EXT_TYPE, ExtMethods, ExtToken } from "./tokens/extToken";
 import {
+  DIP721_V2_TYPE,
+  Dip721V2Methods,
+  Dip721V2Token,
+} from "./tokens/dip721V2Token";
+import {
+  DIP721_V2_BETA_TYPE,
   Dip721V2BetaMethods,
   Dip721V2BetaToken,
 } from "./tokens/dip721V2BetaToken";
 import {
+  DIP721_LEGACY_TYPE,
   Dip721LegacyMethods,
   Dip721LegacyToken,
 } from "./tokens/dip721LegacyToken";
+import { Icrc1Token } from "./tokens/icrc1Token";
 
 export interface TokenManagerConfig<T extends string | undefined = undefined>
   extends ActorConfig {
-  readonly supportedInterfaces?: T[];
+  readonly supportedStandards?: T[];
 }
 
 export class TokenManager {
-  private static readonly _tokens = [
+  private static readonly tokens = [
+    Icrc1Token,
     IcpToken,
-    SldToken,
+    // SldToken,
     ExtToken,
     Dip721V2Token,
     Dip721V2BetaToken,
@@ -31,15 +39,9 @@ export class TokenManager {
   private readonly _tokens: (BaseToken & Token)[];
 
   protected constructor(config: TokenManagerConfig<any>) {
-    this._tokens = TokenManager._tokens.reduce((tokens, token) => {
-      if (
-        intersect(config.supportedInterfaces ?? [], token.implementedInterfaces)
-          .length
-      ) {
-        tokens.push(token.create(config) as unknown as BaseToken & Token);
-      }
-      return tokens;
-    }, [] as typeof this._tokens);
+    this._tokens = TokenManager.getTokens(config.supportedStandards ?? []).map(
+      (token) => token.create(config)
+    ) as typeof this._tokens;
     const methods: Array<keyof Token> = [
       "metadata",
       "name",
@@ -55,7 +57,6 @@ export class TokenManager {
       "metadataOf",
       "transfer",
       "approve",
-      "setApproval",
       "getApproved",
       "setApprovalForAll",
       "isApprovedForAll",
@@ -87,11 +88,17 @@ export class TokenManager {
     });
   }
 
-  public static create<
+  static create<
     T extends string | undefined = undefined,
-    M = T extends string
+    M = T extends
+      | ICP_TYPE
+      // | SLD_TYPE
+      | EXT_TYPE
+      | DIP721_V2_TYPE
+      | DIP721_V2_BETA_TYPE
+      | DIP721_LEGACY_TYPE
       ? IcpMethods<T> &
-          SldMethods<T> &
+          // SldMethods<T> &
           ExtMethods<T> &
           Dip721V2Methods<T> &
           Dip721V2BetaMethods<T> &
@@ -99,23 +106,23 @@ export class TokenManager {
       : Partial<Token>,
     R = T extends string ? UnionToIntersection<M> : Promise<M>
   >(config: TokenManagerConfig<T>): R {
-    if (config.supportedInterfaces) {
-      return new TokenManager(config) as R;
+    if (config.supportedStandards) {
+      return new TokenManager(config) as unknown as R;
     }
-    return TokenManager.supportedInterfaces(config).then(
-      (supportedInterfaces) =>
+    return TokenManager.supportedStandards(config).then(
+      (supportedStandards) =>
         new TokenManager({
           ...config,
-          supportedInterfaces: supportedInterfaces.map(({ name }) => name),
+          supportedStandards: supportedStandards.map(({ name }) => name),
         })
-    ) as R;
+    ) as unknown as R;
   }
 
-  public static async supportedInterfaces(config: ActorConfig) {
+  static async supportedStandards(config: ActorConfig) {
     return (
       await Promise.all(
-        TokenManager._tokens.map((token) =>
-          token.supportedInterfaces({
+        TokenManager.tokens.map((token) =>
+          token.supportedStandards({
             ...config,
             agent:
               config.agent instanceof HttpAgent
@@ -129,13 +136,34 @@ export class TokenManager {
       )
     ).flat();
   }
+
+  static tokenType(supportedStandards: string[]): TokenType | undefined {
+    return TokenManager.getTokens(supportedStandards)[0]?.tokenType(
+      supportedStandards
+    );
+  }
+
+  static accountType(supportedStandards: string[]): AccountType | undefined {
+    return TokenManager.getTokens(supportedStandards)[0]?.accountType;
+  }
+
+  private static getTokens(supportedStandards: string[]) {
+    return TokenManager.tokens.reduce(
+      (tokens, token) =>
+        intersect(supportedStandards, token.implementedStandards).length
+          ? [...tokens, token]
+          : tokens,
+      [] as typeof TokenManager.tokens
+    );
+  }
 }
 
 // Re-export utils and all tokens
 export * from "./utils";
 export * from "./tokens/token";
+export * from "./tokens/icrc1Token";
 export * from "./tokens/icpToken";
-export * from "./tokens/sldToken";
+// export * from "./tokens/sldToken";
 export * from "./tokens/extToken";
 export * from "./tokens/dip721V2Token";
 export * from "./tokens/dip721V2BetaToken";

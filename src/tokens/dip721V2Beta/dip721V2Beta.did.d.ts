@@ -1,5 +1,5 @@
-import type { Principal } from '@dfinity/principal';
-import type { ActorMethod } from '@dfinity/agent';
+import type { Principal } from "@dfinity/principal";
+import type { ActorMethod } from "@dfinity/agent";
 
 export type GenericValue =
   | { Nat64Content: bigint }
@@ -14,7 +14,7 @@ export type GenericValue =
   | { Int8Content: number }
   | { FloatContent: number }
   | { Int16Content: number }
-  | { BlobContent: Array<number> }
+  | { BlobContent: Uint8Array }
   | { NestedContent: Vec }
   | { Principal: Principal }
   | { TextContent: string };
@@ -96,11 +96,11 @@ export type Vec = Array<
       | { Int8Content: number }
       | { FloatContent: number }
       | { Int16Content: number }
-      | { BlobContent: Array<number> }
+      | { BlobContent: Uint8Array }
       | { NestedContent: Vec }
       | { Principal: Principal }
       | { TextContent: string }
-    ),
+    )
   ]
 >;
 

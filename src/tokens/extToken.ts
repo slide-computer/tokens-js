@@ -7,18 +7,21 @@ import {
   accountToHash,
   actorHost,
   numberToUint32,
-  subaccountFromIndex,
   urlIsImage,
 } from "../utils";
 import { BaseToken, Token } from "./token";
 import { Principal } from "@dfinity/principal";
 import { Buffer } from "buffer";
+import { Value } from "./icrc1/icrc1.did";
 
 export const EXT_COMMON = "@ext/common";
 export const EXT_NON_FUNGIBLE = "@ext/nonfungible";
+export type EXT_TYPE = typeof EXT_COMMON | typeof EXT_NON_FUNGIBLE;
 
 export const ENTREPOT_COLLECTIONS_API =
   "https://us-central1-entrepot-api.cloudfunctions.net/api/collections";
+export const ENTREPOT_FILTERS_API =
+  "https://corsproxy.io/?https://entrepot.app/filter"; // Cors proxy is needed since CORS headers are missing
 
 export const tokenIdToExtTokenId = (canisterId: Principal, index: bigint) => {
   const padding = new Buffer("\x0Atid");
@@ -40,6 +43,7 @@ export type ExtMethods<T extends string | undefined = undefined> =
         | "mintingAccount"
         | "balanceOf"
         | "transfer"
+        | "logo"
       >
     : {}) &
     (T extends typeof EXT_NON_FUNGIBLE
@@ -56,19 +60,20 @@ export type ExtMethods<T extends string | undefined = undefined> =
       : {});
 
 export class ExtToken extends BaseToken implements Partial<Token> {
-  public static readonly implementedInterfaces = [EXT_COMMON, EXT_NON_FUNGIBLE];
+  static implementedStandards = [EXT_COMMON, EXT_NON_FUNGIBLE] as const;
+  static accountType = "hash" as const;
 
   private readonly _actor: ActorSubclass<_SERVICE>;
 
   protected constructor({
-    supportedInterfaces = [],
+    supportedStandards = [],
     ...actorConfig
   }: TokenManagerConfig<string>) {
-    super({ supportedInterfaces, ...actorConfig });
+    super({ supportedStandards, ...actorConfig });
     this._actor = ExtToken.createActor(actorConfig);
 
     // Disable methods for unsupported standards
-    if (!supportedInterfaces.includes(EXT_COMMON)) {
+    if (!supportedStandards.includes(EXT_COMMON)) {
       this.metadata = undefined;
       this.name = undefined;
       this.symbol = undefined;
@@ -77,7 +82,7 @@ export class ExtToken extends BaseToken implements Partial<Token> {
       this.transfer = undefined;
       this.logo = undefined;
     }
-    if (!supportedInterfaces.includes(EXT_NON_FUNGIBLE)) {
+    if (!supportedStandards.includes(EXT_NON_FUNGIBLE)) {
       this.totalSupply = undefined;
       this.ownerOf = undefined;
       this.tokens = undefined;
@@ -88,15 +93,15 @@ export class ExtToken extends BaseToken implements Partial<Token> {
     }
   }
 
-  public static create<T extends string>(config: TokenManagerConfig<T>) {
+  static create<T extends string>(config: TokenManagerConfig<T>) {
     return new ExtToken(config) as unknown as BaseToken & ExtMethods<T>;
   }
 
-  public static createActor(config: ActorConfig): ActorSubclass<_SERVICE> {
+  static createActor(config: ActorConfig): ActorSubclass<_SERVICE> {
     return Actor.createActor(idlFactory, config);
   }
 
-  public static async supportedInterfaces(
+  static async supportedStandards(
     config: ActorConfig
   ): Promise<Array<{ name: string; url: string }>> {
     try {
@@ -111,25 +116,41 @@ export class ExtToken extends BaseToken implements Partial<Token> {
     }
   }
 
-  public async metadata?() {
-    return [
-      { key: `${EXT_COMMON}:name`, value: { Text: await this.name!() } },
-      { key: `${EXT_COMMON}:symbol`, value: { Text: await this.symbol!() } },
-      {
-        key: `${EXT_COMMON}:total_supply`,
-        value: { Text: await this.totalSupply!() },
-      },
-    ];
+  static tokenType(supportedStandards: string[]) {
+    if (supportedStandards.includes(EXT_NON_FUNGIBLE)) {
+      return "nonFungible";
+    }
+    return "fungible" as const;
   }
 
-  public async name?() {
+  async metadata?() {
+    return [
+      [`${EXT_COMMON}:name`, { Text: await this.name!() }],
+      [`${EXT_COMMON}:symbol`, { Text: await this.symbol!() }],
+      [`${EXT_COMMON}:total_supply`, { Text: await this.totalSupply!() }],
+    ] as Array<[string, Value]>;
+  }
+
+  async name?() {
     // Grab collection name from index page with regex since the canister has no name or metadata method
     const res = await this._actor.http_request({
-      body: [],
+      body: new Uint8Array(),
       headers: [],
       method: "GET",
       url: "/",
     });
+
+    // Exceptions that do not return a correct name
+    switch (Actor.canisterIdOf(this._actor).toText()) {
+      case "oeee4-qaaaa-aaaak-qaaeq-cai":
+        return "Motoko Ghosts";
+      case "bzsui-sqaaa-aaaah-qce2a-cai":
+        return "Poked Bots";
+      case "dhiaa-ryaaa-aaaae-qabva-cai":
+        return "ETH Flower";
+    }
+
+    // Get name from canister status page
     if (res.status_code === 200) {
       const re = /^(.+?)\n(?:EXT by|---)/;
       const body = new TextDecoder().decode(res.body as unknown as Uint8Array);
@@ -155,12 +176,12 @@ export class ExtToken extends BaseToken implements Partial<Token> {
       }
     } catch (_) {}
 
-    return this._config.supportedInterfaces?.includes(EXT_NON_FUNGIBLE)
-      ? "Collection"
+    return this._config.supportedStandards?.includes(EXT_NON_FUNGIBLE)
+      ? "Non-fungible token"
       : "Token";
   }
 
-  public async symbol?() {
+  async symbol?() {
     // Check if the entrepot backend might contain the symbol
     try {
       const collections = await (
@@ -179,20 +200,20 @@ export class ExtToken extends BaseToken implements Partial<Token> {
       }
     } catch (_) {}
 
-    return this._config.supportedInterfaces?.includes(EXT_NON_FUNGIBLE)
+    return this._config.supportedStandards?.includes(EXT_NON_FUNGIBLE)
       ? "NFT"
       : "TKN";
   }
 
-  public async totalSupply?() {
+  async totalSupply?() {
     return BigInt((await this._actor.getTokens()).length);
   }
 
-  public async mintingAccount?() {
+  async mintingAccount?() {
     return (await this._actor.getMinter()).toText();
   }
 
-  public async balanceOf?(account: string) {
+  async balanceOf?(account: string) {
     // Count tokens to get balance
     const res = await this._actor.tokens(accountHashFromString(account));
     if ("ok" in res) {
@@ -201,19 +222,19 @@ export class ExtToken extends BaseToken implements Partial<Token> {
     return BigInt(0);
   }
 
-  public async ownerOf?(tokenId: bigint) {
+  async ownerOf?(tokenId: bigint) {
     // Get registry with all tokens and owners and return owner for token
     const res = await this._actor.getRegistry();
     return res.find(([id]) => id === Number(tokenId))?.[1];
   }
 
-  public async tokens?() {
+  async tokens?() {
     return (await this._actor.getTokens())
       .map(([tokenId]) => BigInt(tokenId))
       .sort((a, b) => (a > b ? 1 : a < b ? -1 : 0));
   }
 
-  public async tokensOf?(account: string) {
+  async tokensOf?(account: string) {
     const res = await this._actor.tokens(accountHashFromString(account));
     if ("ok" in res) {
       return Array.from(res.ok)
@@ -223,11 +244,11 @@ export class ExtToken extends BaseToken implements Partial<Token> {
     return [];
   }
 
-  public async transfer?(
+  async transfer?(
     args: {
       to: string;
-      fromSubaccount?: Uint8Array | number[] | bigint;
-      memo?: Uint8Array | number[];
+      fromSubaccount?: Uint8Array;
+      memo?: Uint8Array;
       createdAtTime?: bigint;
     } & ({ tokenId: bigint } | { amount: bigint })
   ): Promise<bigint> {
@@ -244,15 +265,9 @@ export class ExtToken extends BaseToken implements Partial<Token> {
           subaccount: args.fromSubaccount,
         }),
       },
-      memo: args.memo ? (args.memo as number[]) : [0],
+      memo: args.memo ? args.memo : Uint8Array.from([0]),
       notify: false,
-      subaccount: args.fromSubaccount
-        ? [
-            (typeof args.fromSubaccount === "bigint"
-              ? subaccountFromIndex(args.fromSubaccount)
-              : args.fromSubaccount) as number[],
-          ]
-        : [],
+      subaccount: args.fromSubaccount ? [args.fromSubaccount] : [],
       to: { address: accountHashFromString(args.to) },
       token:
         "tokenId" in args ? tokenIdToExtTokenId(canisterId, args.tokenId) : "",
@@ -264,12 +279,12 @@ export class ExtToken extends BaseToken implements Partial<Token> {
     throw Error(JSON.stringify(res.err));
   }
 
-  public async icon?() {
+  async icon?() {
     // TODO
     return "";
   }
 
-  public async logo?() {
+  async logo?() {
     try {
       const collections = await (await fetch(ENTREPOT_COLLECTIONS_API)).json();
       const canisterId = Actor.canisterIdOf(this._actor);
@@ -289,7 +304,7 @@ export class ExtToken extends BaseToken implements Partial<Token> {
     } catch (_) {}
   }
 
-  public async assetOf?(tokenId: bigint) {
+  async assetOf?(tokenId: bigint) {
     const canisterId = Actor.canisterIdOf(this._actor);
     return {
       location: `${actorHost(this._actor, true)}/?tokenid=${tokenIdToExtTokenId(
@@ -299,18 +314,34 @@ export class ExtToken extends BaseToken implements Partial<Token> {
     };
   }
 
-  public async imageOf?(tokenId: bigint) {
+  async imageOf?(tokenId: bigint) {
     const canisterId = Actor.canisterIdOf(this._actor);
-    return `${actorHost(this._actor, true)}/?tokenid=${tokenIdToExtTokenId(
-      canisterId,
-      tokenId
-    )}&type=thumbnail`;
+    const image = `${actorHost(
+      this._actor,
+      true
+    )}/?tokenid=${tokenIdToExtTokenId(canisterId, tokenId)}&type=thumbnail`;
+
+    // Exceptions that return an SVG image that fetches the actual image with JS,
+    // since this method intends to return images that can be actually rendered as image,
+    // we'll fetch this image url and return it instead.
+    switch (canisterId.toText()) {
+      case "pk6rk-6aaaa-aaaae-qaazq-cai":
+      case "dhiaa-ryaaa-aaaae-qabva-cai":
+      case "skjpp-haaaa-aaaae-qac7q-cai":
+        return fetch(image)
+          .then((res) => res.text())
+          .then(
+            (text) => /fetch\(["'](.*\.svg)["']\)/.exec(text)?.[1] ?? undefined
+          );
+    }
+
+    return image;
   }
 
-  public async attributesOf?(tokenId: bigint) {
+  async attributesOf?(tokenId: bigint) {
     const canisterId = Actor.canisterIdOf(this._actor);
     const filter = await fetch(
-      `https://entrepot.app/filter/${canisterId.toText()}.json`
+      `${ENTREPOT_FILTERS_API}/${canisterId.toText()}.json`
     )
       .then((res) => res.json())
       .catch(() => undefined);
@@ -330,7 +361,7 @@ export class ExtToken extends BaseToken implements Partial<Token> {
                 ([_valueIndex]: [number]) => _valueIndex === valueIndex
               )?.[1] ?? "",
           },
-          traitType: trait?.[1] && { Text: trait?.[1] },
+          traitType: trait?.[1],
         };
       });
   }

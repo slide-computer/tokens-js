@@ -3,18 +3,24 @@ import { _SERVICE, GenericValue } from "./dip721V2/dip721V2.did";
 import { idlFactory } from "./dip721V2";
 import { principalFromString } from "../utils";
 import { TokenManagerConfig } from "../index";
-import { BaseToken, Token, Value } from "./token";
+import { BaseToken, Token } from "./token";
 import { Principal } from "@dfinity/principal";
+import { Value } from "./icrc1/icrc1.did";
 
 export const DIP721_V2 = "dip721_v2";
 export const DIP721_V2_MINT = "dip721_v2_mint";
 export const DIP721_V2_BURN = "dip721_v2_burn";
 export const DIP721_V2_APPROVAL = "dip721_v2_approval";
 
-const flattenMetadataEntry = ([key, value]: [string, GenericValue]): Array<{
-  key: string;
-  value: Value;
-}> => {
+export type DIP721_V2_TYPE =
+  | typeof DIP721_V2
+  | typeof DIP721_V2_MINT
+  | typeof DIP721_V2_BURN
+  | typeof DIP721_V2_APPROVAL;
+
+const flattenMetadataEntry = ([key, value]: [string, GenericValue]): Array<
+  [string, Value]
+> => {
   const natValueKey = (
     [
       "NatContent",
@@ -25,7 +31,7 @@ const flattenMetadataEntry = ([key, value]: [string, GenericValue]): Array<{
     ] as Array<keyof GenericValue>
   ).find((k) => k in value);
   if (natValueKey) {
-    return [{ key, value: { Nat: BigInt(value[natValueKey]) } }];
+    return [[key, { Nat: BigInt(value[natValueKey]) }]];
   }
   const intValueKey = (
     [
@@ -37,22 +43,22 @@ const flattenMetadataEntry = ([key, value]: [string, GenericValue]): Array<{
     ] as Array<keyof GenericValue>
   ).find((k) => k in value);
   if (intValueKey) {
-    return [{ key, value: { Nat: BigInt(value[intValueKey]) } }];
+    return [[key, { Nat: BigInt(value[intValueKey]) }]];
   }
   if ("FloatContent" in value) {
-    return [{ key, value: { Text: value.FloatContent.toString() } }];
+    return [[key, { Text: value.FloatContent.toString() }]];
   }
   if ("BoolContent" in value) {
-    return [{ key, value: { Nat: BigInt(value.BoolContent ? 1 : 0) } }];
+    return [[key, { Nat: BigInt(value.BoolContent ? 1 : 0) }]];
   }
   if ("BlobContent" in value) {
-    return [{ key, value: { Blob: value.BlobContent } }];
+    return [[key, { Blob: value.BlobContent }]];
   }
   if ("Principal" in value) {
-    return [{ key, value: { Text: value.Principal.toText() } }];
+    return [[key, { Text: value.Principal.toText() }]];
   }
   if ("TextContent" in value) {
-    return [{ key, value: { Text: value.TextContent } }];
+    return [[key, { Text: value.TextContent }]];
   }
   if ("NestedContent" in value) {
     return value.NestedContent.map(([nestedKey, nestedValue]) =>
@@ -89,24 +95,25 @@ export type Dip721V2Methods<T extends string | undefined = undefined> =
       : {});
 
 export class Dip721V2Token extends BaseToken implements Partial<Token> {
-  public static readonly implementedInterfaces = [
+  static implementedStandards = [
     DIP721_V2,
     DIP721_V2_MINT,
     DIP721_V2_BURN,
     DIP721_V2_APPROVAL,
-  ];
+  ] as const;
+  static accountType = "principal" as const;
 
   private readonly _actor: ActorSubclass<_SERVICE>;
 
   protected constructor({
-    supportedInterfaces = [],
+    supportedStandards = [],
     ...actorConfig
   }: TokenManagerConfig<string>) {
-    super({ supportedInterfaces, ...actorConfig });
+    super({ supportedStandards: supportedStandards, ...actorConfig });
     this._actor = Dip721V2Token.createActor(actorConfig);
 
     // Disable methods for unsupported standards
-    if (!supportedInterfaces.includes(DIP721_V2)) {
+    if (!supportedStandards.includes(DIP721_V2)) {
       this.metadata = undefined;
       this.name = undefined;
       this.symbol = undefined;
@@ -121,7 +128,7 @@ export class Dip721V2Token extends BaseToken implements Partial<Token> {
       this.setCustodian = undefined;
       this.logo = undefined;
     }
-    if (!supportedInterfaces.includes(DIP721_V2_APPROVAL)) {
+    if (!supportedStandards.includes(DIP721_V2_APPROVAL)) {
       this.approve = undefined;
       this.setApprovalForAll = undefined;
       this.isApprovedForAll = undefined;
@@ -129,16 +136,16 @@ export class Dip721V2Token extends BaseToken implements Partial<Token> {
     }
   }
 
-  public static create<T extends string>(config: TokenManagerConfig<T>) {
+  static create<T extends string>(config: TokenManagerConfig<T>) {
     return new Dip721V2Token(config) as unknown as BaseToken &
       Dip721V2Methods<T>;
   }
 
-  public static createActor(config: ActorConfig): ActorSubclass<_SERVICE> {
+  static createActor(config: ActorConfig): ActorSubclass<_SERVICE> {
     return Actor.createActor(idlFactory, config);
   }
 
-  public static async supportedInterfaces(
+  static async supportedStandards(
     config: ActorConfig
   ): Promise<Array<{ name: string; url: string }>> {
     try {
@@ -164,44 +171,48 @@ export class Dip721V2Token extends BaseToken implements Partial<Token> {
     }
   }
 
-  public async metadata?() {
+  static tokenType() {
+    return "fungible" as const;
+  }
+
+  async metadata?() {
     const res = await this._actor.dip721_metadata();
-    const metadata: Array<{ key: string; value: Value }> = [
-      { key: `${DIP721_V2}:created_at`, value: { Nat: res.created_at } },
-      { key: `${DIP721_V2}:upgraded_at`, value: { Nat: res.upgraded_at } },
-      ...res.custodians.map((custodian) => ({
-        key: `${DIP721_V2}:custodians`,
-        value: { Text: custodian.toText() },
-      })),
+    const metadata: Array<[string, Value]> = [
+      [`${DIP721_V2}:created_at`, { Nat: res.created_at }],
+      [`${DIP721_V2}:upgraded_at`, { Nat: res.upgraded_at }],
+      ...res.custodians.map(
+        (custodian) =>
+          [`${DIP721_V2}:custodians`, { Text: custodian.toText() }] as [
+            string,
+            Value
+          ]
+      ),
     ];
     if (res.name.length) {
-      metadata.push({ key: `${DIP721_V2}:name`, value: { Text: res.name[0] } });
+      metadata.push([`${DIP721_V2}:name`, { Text: res.name[0] }]);
     }
     if (res.symbol.length) {
-      metadata.push({
-        key: `${DIP721_V2}:symbol`,
-        value: { Text: res.symbol[0] },
-      });
+      metadata.push([`${DIP721_V2}:symbol`, { Text: res.symbol[0] }]);
     }
     if (res.logo.length) {
-      metadata.push({ key: `${DIP721_V2}:logo`, value: { Text: res.logo[0] } });
+      metadata.push([`${DIP721_V2}:logo`, { Text: res.logo[0] }]);
     }
     return metadata;
   }
 
-  public async name?() {
+  async name?() {
     return (await this._actor.dip721_name())[0] ?? "Collection";
   }
 
-  public async symbol?() {
+  async symbol?() {
     return (await this._actor.dip721_symbol())[0] ?? "NFT";
   }
 
-  public async totalSupply?() {
+  async totalSupply?() {
     return this._actor.dip721_total_supply();
   }
 
-  public async mintingAccount?() {
+  async mintingAccount?() {
     const canisterId = await Actor.agentOf(this._actor)?.getPrincipal();
     if (!canisterId) {
       throw Error("Agent with principal is required");
@@ -209,19 +220,19 @@ export class Dip721V2Token extends BaseToken implements Partial<Token> {
     return canisterId.toText();
   }
 
-  public async balanceOf?(account: string) {
+  async balanceOf?(account: string) {
     const res = await this._actor.dip721_balance_of(
       principalFromString(account)
     );
     return "Ok" in res ? res.Ok : BigInt(0);
   }
 
-  public async ownerOf?(tokenId: bigint) {
+  async ownerOf?(tokenId: bigint) {
     const res = await this._actor.dip721_owner_of(tokenId);
     return "Ok" in res ? res.Ok[0]?.toText() : undefined;
   }
 
-  public async tokens?() {
+  async tokens?() {
     // Get all tokens based on total supply, this does include burned tokens
     const totalSupply = (await this.totalSupply?.()) ?? BigInt(0);
     return Array.from({ length: Number(totalSupply) }).map((_, index) =>
@@ -229,7 +240,7 @@ export class Dip721V2Token extends BaseToken implements Partial<Token> {
     );
   }
 
-  public async tokensOf?(account: string) {
+  async tokensOf?(account: string) {
     const res = await this._actor.dip721_owner_token_metadata(
       principalFromString(account)
     );
@@ -238,87 +249,78 @@ export class Dip721V2Token extends BaseToken implements Partial<Token> {
       : [];
   }
 
-  public async metadataOf?(tokenId: bigint) {
+  async metadataOf?(tokenId: bigint) {
     const res = await this._actor.dip721_token_metadata(tokenId);
     if ("Ok" in res) {
-      const metadata: Array<{ key: string; value: Value }> = [
-        {
-          key: `${DIP721_V2}:token_identifier`,
-          value: { Nat: res.Ok.token_identifier },
-        },
-        {
-          key: `${DIP721_V2}:minted_by`,
-          value: { Text: res.Ok.minted_by.toText() },
-        },
-        { key: `${DIP721_V2}:minted_at`, value: { Nat: res.Ok.minted_at } },
-        {
-          key: `${DIP721_V2}:is_burned`,
-          value: { Nat: BigInt(res.Ok.is_burned ? 1 : 0) },
-        },
+      const metadata: Array<[string, Value]> = [
+        [`${DIP721_V2}:token_identifier`, { Nat: res.Ok.token_identifier }],
+        [`${DIP721_V2}:minted_by`, { Text: res.Ok.minted_by.toText() }],
+        [`${DIP721_V2}:minted_at`, { Nat: res.Ok.minted_at }],
+        [`${DIP721_V2}:is_burned`, { Nat: BigInt(res.Ok.is_burned ? 1 : 0) }],
       ];
       if (res.Ok.owner.length) {
-        metadata.push({
-          key: `${DIP721_V2}:owner`,
-          value: {
+        metadata.push([
+          `${DIP721_V2}:owner`,
+          {
             Text: res.Ok.owner[0].toText(),
           },
-        });
+        ]);
       }
       if (res.Ok.transferred_by.length) {
-        metadata.push({
-          key: `${DIP721_V2}:transferred_by`,
-          value: {
+        metadata.push([
+          `${DIP721_V2}:transferred_by`,
+          {
             Text: res.Ok.transferred_by[0].toText(),
           },
-        });
+        ]);
       }
       if (res.Ok.transferred_at.length) {
-        metadata.push({
-          key: `${DIP721_V2}:transferred_at`,
-          value: {
+        metadata.push([
+          `${DIP721_V2}:transferred_at`,
+          {
             Nat: res.Ok.transferred_at[0],
           },
-        });
+        ]);
       }
       if (res.Ok.burned_by.length) {
-        metadata.push({
-          key: `${DIP721_V2}:burned_by`,
-          value: {
+        metadata.push([
+          `${DIP721_V2}:burned_by`,
+          {
             Text: res.Ok.burned_by[0].toText(),
           },
-        });
+        ]);
       }
       if (res.Ok.burned_at.length) {
-        metadata.push({
-          key: `${DIP721_V2}:burned_at`,
-          value: {
+        metadata.push([
+          `${DIP721_V2}:burned_at`,
+          {
             Nat: res.Ok.burned_at[0],
           },
-        });
+        ]);
       }
       if (res.Ok.approved_by.length) {
-        metadata.push({
-          key: `${DIP721_V2}:approved_by`,
-          value: {
+        metadata.push([
+          `${DIP721_V2}:approved_by`,
+          {
             Text: res.Ok.approved_by[0].toText(),
           },
-        });
+        ]);
       }
       if (res.Ok.approved_at.length) {
-        metadata.push({
-          key: `${DIP721_V2}:approved_at`,
-          value: {
+        metadata.push([
+          `${DIP721_V2}:approved_at`,
+          {
             Nat: res.Ok.approved_at[0],
           },
-        });
+        ]);
       }
       if (res.Ok.operator.length) {
-        metadata.push({
-          key: `${DIP721_V2}:operator`,
-          value: {
+        metadata.push([
+          `${DIP721_V2}:operator`,
+          {
             Text: res.Ok.operator[0].toText(),
           },
-        });
+        ]);
       }
       return [
         ...metadata,
@@ -346,7 +348,7 @@ export class Dip721V2Token extends BaseToken implements Partial<Token> {
   }
 
   public async approve?(args: {
-    spender: Principal;
+    spender: string;
     tokenId: bigint;
     approved: boolean;
   }): Promise<bigint> {
@@ -356,7 +358,7 @@ export class Dip721V2Token extends BaseToken implements Partial<Token> {
       throw Error("Agent with principal is required");
     }
     const res = await this._actor.dip721_approve(
-      args.approved ? args.spender : canisterId,
+      args.approved ? principalFromString(args.spender) : canisterId,
       args.tokenId
     );
     if ("Ok" in res) {
@@ -437,10 +439,10 @@ export class Dip721V2Token extends BaseToken implements Partial<Token> {
       return;
     }
     const entry = metadata.find(
-      ({ key }) => key === `${DIP721_V2}:properties:location`
+      ([key]) => key === `${DIP721_V2}:properties:location`
     );
-    return entry && "Text" in entry.value
-      ? { location: entry.value.Text }
+    return entry && "Text" in entry[1]
+      ? { location: entry[1].Text }
       : undefined;
   }
 
@@ -450,9 +452,9 @@ export class Dip721V2Token extends BaseToken implements Partial<Token> {
       return;
     }
     const entry = metadata.find(
-      ({ key }) => key === `${DIP721_V2}:properties:thumbnail`
+      ([key]) => key === `${DIP721_V2}:properties:thumbnail`
     );
-    return entry && "Text" in entry.value ? entry.value.Text : undefined;
+    return entry && "Text" in entry[1] ? entry[1].Text : undefined;
   }
 
   public async attributesOf?(tokenId: bigint) {
@@ -464,8 +466,8 @@ export class Dip721V2Token extends BaseToken implements Partial<Token> {
       `^${DIP721_V2}:properties:(?!location$)(?!thumbnail$)([^:]+$)`
     );
     return metadata
-      .filter(({ key }) => traitTypeRegExp.test(key))
-      .map(({ key, value }) => {
+      .filter(([key]) => traitTypeRegExp.test(key))
+      .map(([key, value]) => {
         const traitType = traitTypeRegExp.exec(key)![1];
         return { value, traitType };
       });

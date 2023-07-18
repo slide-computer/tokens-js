@@ -1,5 +1,5 @@
-import type { Principal } from '@dfinity/principal';
-import type { ActorMethod } from '@dfinity/agent';
+import type { Principal } from "@dfinity/principal";
+import type { ActorMethod } from "@dfinity/agent";
 
 export type AccountIdentifier = string;
 export type AccountIdentifier__1 = string;
@@ -22,12 +22,12 @@ export type HeaderField = [string, string];
 export interface HttpRequest {
   url: string;
   method: string;
-  body: Array<number>;
+  body: Uint8Array;
   headers: Array<HeaderField>;
 }
 
 export interface HttpResponse {
-  body: Array<number>;
+  body: Uint8Array;
   headers: Array<HeaderField>;
   streaming_strategy: [] | [HttpStreamingStrategy];
   status_code: number;
@@ -35,12 +35,12 @@ export interface HttpResponse {
 
 export interface HttpStreamingCallbackResponse {
   token: [] | [HttpStreamingCallbackToken];
-  body: Array<number>;
+  body: Uint8Array;
 }
 
 export interface HttpStreamingCallbackToken {
   key: string;
-  sha256: [] | [Array<number>];
+  sha256: [] | [Uint8Array];
   index: bigint;
   content_encoding: string;
 }
@@ -64,17 +64,17 @@ export interface Listing {
   price: bigint;
 }
 
-export type Memo = Array<number>;
+export type Memo = Uint8Array;
 export type Metadata =
   | {
       fungible: {
         decimals: number;
-        metadata: [] | [Array<number>];
+        metadata: [] | [Uint8Array];
         name: string;
         symbol: string;
       };
     }
-  | { nonfungible: { metadata: [] | [Array<number>] } };
+  | { nonfungible: { metadata: [] | [Uint8Array] } };
 
 export interface MintingRequest {
   to: AccountIdentifier__1;
@@ -83,7 +83,7 @@ export interface MintingRequest {
 
 export type Result =
   | {
-      ok: Array<[TokenIndex, [] | [Listing], [] | [Array<number>]]>;
+      ok: Array<[TokenIndex, [] | [Listing], [] | [Uint8Array]]>;
     }
   | { err: CommonError };
 export type Result_1 = { ok: Array<TokenIndex> } | { err: CommonError };
@@ -120,8 +120,8 @@ export interface Settlement {
   price: bigint;
 }
 
-export type SubAccount = Array<number>;
-export type SubAccount__1 = Array<number>;
+export type SubAccount = Uint8Array;
+export type SubAccount__1 = Uint8Array;
 export type Time = bigint;
 export type TokenIdentifier = string;
 export type TokenIdentifier__1 = string;

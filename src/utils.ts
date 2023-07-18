@@ -2,83 +2,76 @@ import { Principal } from "@dfinity/principal";
 import { sha224 } from "js-sha256";
 import crc32 from "buffer-crc32";
 import { Buffer } from "buffer";
-import { Actor, HttpAgent } from "@dfinity/agent";
+import { Actor, Agent, HttpAgent } from "@dfinity/agent";
+import { encode } from "@dfinity/principal/lib/cjs/utils/base32";
 
 export interface Account {
   owner: Principal;
-  subaccount?: number[];
+  subaccount?: Uint8Array;
 }
 
 export const ICP_CANISTER_ID = "ryjl3-tyaaa-aaaaa-aaaba-cai";
 
 export const accountToString = (account: {
-  owner: Principal | string;
-  subaccount?: Uint8Array | number[] | bigint;
+  owner: Principal;
+  subaccount?: Uint8Array;
 }): string => {
-  const subaccount =
-    typeof account.subaccount === "bigint"
-      ? subaccountFromIndex(account.subaccount)
-      : Array.isArray(account.subaccount)
-      ? account.subaccount
-      : Array.from(account.subaccount ?? []);
-  const index = subaccount.findIndex((value) => value !== 0);
-  if (index === -1) {
-    return typeof account.owner === "string"
-      ? account.owner
-      : account.owner.toText();
+  if (
+    !account.subaccount ||
+    arraybufferEqual(
+      account.subaccount.buffer,
+      subaccountFromIndex(BigInt(0)).buffer
+    )
+  ) {
+    return account.owner.toText();
   }
-  return Principal.fromUint8Array(
-    new Uint8Array([
-      ...(typeof account.owner === "string"
-        ? Principal.fromText(account.owner)
-        : account.owner
-      ).toUint8Array(),
-      ...subaccount.slice(index),
-      subaccount.length - index,
-      127,
-    ])
-  ).toText();
+  const ownerMaxLength = 29;
+  const ownerBytes = account.owner.toUint8Array().slice(0, ownerMaxLength);
+  const checksumBytes = new Uint8Array(ownerBytes.length + 32);
+  checksumBytes.set(ownerBytes);
+  checksumBytes.set(account.subaccount, ownerBytes.length);
+  const checksum = encode(crc32(Buffer.from(checksumBytes)));
+  const compressedSubaccount = Buffer.from(account.subaccount)
+    .toString("hex")
+    .replace(/^0+(.*)/, (_, hex) => hex);
+  return `${account.owner.toText()}-${checksum}.${compressedSubaccount}`;
 };
 
 export const accountFromString = (str: string): Account => {
   if (isAccountHash(str)) {
     throw Error("Account hashes are not supported");
   }
-  const principal = Principal.fromText(str);
-  const array = Array.from(principal.toUint8Array());
-  if (array[array.length - 1] !== 127) {
-    return { owner: principal };
+  if (!str.includes(".")) {
+    return { owner: Principal.fromText(str) };
   }
-  if (array[array.length - 2] === 0 || array[array.length - 2] > 32) {
-    throw Error("Invalid account");
+  const chunks = str.split("-");
+  const [checksum, hexCompressedSubAccount] = chunks.pop()!.split(".");
+  const compressedSubaccount = Uint8Array.from(
+    Buffer.from(hexCompressedSubAccount, "hex")
+  );
+  const subaccount = new Uint8Array(32);
+  subaccount.set(compressedSubaccount, 32 - compressedSubaccount.length);
+  const owner = Principal.fromText(chunks.join("-"));
+  const ownerMaxLength = 29;
+  const ownerBytes = owner.toUint8Array().slice(0, ownerMaxLength);
+  const checksumBytes = new Uint8Array(ownerBytes.length + 32);
+  checksumBytes.set(ownerBytes);
+  checksumBytes.set(subaccount, ownerBytes.length);
+  if (encode(crc32(Buffer.from(checksumBytes))) !== checksum) {
+    throw Error("Account textual encoding has invalid checksum");
   }
-  return {
-    owner: Principal.fromUint8Array(
-      Uint8Array.from(array.slice(0, -array[array.length - 2] - 2))
-    ),
-    subaccount: [
-      ...Array.from<number>({ length: 32 - array[array.length - 2] }).fill(0),
-      ...array.slice(-array[array.length - 2] - 2, -2),
-    ],
-  };
+  return { owner, subaccount };
 };
 
 export const accountToHash = (account: {
-  owner: Principal | string;
-  subaccount?: Uint8Array | number[] | bigint;
+  owner: Principal;
+  subaccount?: Uint8Array;
 }): string => {
   const shaObj = sha224.create();
   shaObj.update([
     ...Array.from("\x0Aaccount-id").map((c) => c.charCodeAt(0)),
-    ...(typeof account.owner === "string"
-      ? Principal.fromText(account.owner)
-      : account.owner
-    ).toUint8Array(),
-    ...(account.subaccount
-      ? typeof account.subaccount === "bigint"
-        ? subaccountFromIndex(account.subaccount)
-        : account.subaccount
-      : subaccountFromIndex(BigInt(0))),
+    ...account.owner.toUint8Array(),
+    ...(account.subaccount ?? subaccountFromIndex(BigInt(0))),
   ]);
   const hash = new Uint8Array(shaObj.array());
   const checksum = crc32(Buffer.from(hash));
@@ -99,19 +92,14 @@ export const principalFromString = (str: string): Principal => {
   return accountFromString(str).owner;
 };
 
-export const subaccountToIndex = (
-  subaccount: Uint8Array | number[],
-  littleEndian?: boolean
-) => {
-  return new DataView(
-    Array.isArray(subaccount) ? Uint8Array.from(subaccount) : subaccount
-  ).getBigUint64(24, littleEndian);
+export const subaccountToIndex = (subaccount: Uint8Array) => {
+  return new DataView(subaccount.buffer).getBigUint64(24, false);
 };
 
 export const subaccountFromIndex = (index: bigint) => {
   const buffer = new ArrayBuffer(32);
-  new DataView(buffer).setBigUint64(24, index);
-  return Array.from(new Uint8Array(buffer));
+  new DataView(buffer).setBigUint64(24, index, false);
+  return new Uint8Array(buffer);
 };
 
 export const isAccountHash = (address: string) => {
@@ -194,3 +182,23 @@ export type UnionToIntersection<U> = (
 ) extends (k: infer I) => void
   ? I
   : never;
+
+// This doesn't use new HttpAgent({ source: agent }) since that relies on instanceof which doesn't work
+// across different http agent versions which are different classes and as a result don't match
+export const makeHttpAgentAnonymous = (agent: Agent) => {
+  const isHttpAgent = "_fetch" in agent && "_isAgent" in agent;
+  if (isHttpAgent) {
+    const anonymousAgent = new HttpAgent();
+    // @ts-ignore
+    anonymousAgent._pipeline = [...agent._pipeline];
+    // @ts-ignore
+    anonymousAgent._fetch = agent._fetch;
+    // @ts-ignore
+    anonymousAgent._host = agent._host;
+    // @ts-ignore
+    anonymousAgent._credentials = agent._credentials;
+
+    return anonymousAgent;
+  }
+  return agent;
+};

@@ -33,7 +33,7 @@ export interface LogoResult {
   logo_type: string;
 }
 
-export type Memo = Array<number>;
+export type Memo = Uint8Array;
 export type Metadata =
   | {
       fungible: {
@@ -45,7 +45,7 @@ export type Metadata =
     }
   | { nonfungible: [] | [MetadataContainer] };
 export type MetadataContainer =
-  | { blob: Array<number> }
+  | { blob: Uint8Array }
   | { data: Array<MetadataValue> }
   | { json: string };
 export type MetadataDesc = Array<MetadataPart>;
@@ -56,7 +56,7 @@ export interface MetadataKeyVal {
 }
 
 export interface MetadataPart {
-  data: Array<number>;
+  data: Uint8Array;
   key_val_data: Array<MetadataKeyVal>;
   purpose: MetadataPurpose;
 }
@@ -70,7 +70,7 @@ export type MetadataVal =
   | { Nat8Content: number }
   | { NatContent: bigint }
   | { Nat16Content: number }
-  | { BlobContent: Array<number> }
+  | { BlobContent: Uint8Array }
   | { TextContent: string };
 export type MetadataValue = [string, Value];
 export type MintReceipt = { Ok: MintReceiptPart } | { Err: ApiError };
@@ -86,7 +86,7 @@ export interface MintRequest {
 }
 
 export type OwnerResult = { Ok: Principal } | { Err: ApiError };
-export type SubAccount = Array<number>;
+export type SubAccount = Uint8Array;
 export type TokenIdentifier = string;
 export type TokenIndex = number;
 
@@ -167,7 +167,7 @@ export type TxReceipt = { Ok: bigint } | { Err: ApiError };
 export type User = { principal: Principal } | { address: AccountIdentifier };
 export type Value =
   | { nat: bigint }
-  | { blob: Array<number> }
+  | { blob: Uint8Array }
   | { nat8: number }
   | { text: string };
 
