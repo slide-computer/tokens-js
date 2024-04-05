@@ -1,13 +1,20 @@
-import { Actor, ActorConfig, ActorSubclass } from "@dfinity/agent";
+import {
+  Actor,
+  ActorConfig,
+  ActorSubclass,
+  AnonymousIdentity,
+  HttpAgent,
+} from "@dfinity/agent";
 import { _SERVICE } from "./icp/icp.did";
 import { idlFactory } from "./icp";
-import { makeHttpAgentAnonymous, TokenManagerConfig } from "../index";
-import { BaseToken, Token } from "./token";
 import {
-  accountHashFromString,
-  ICP_CANISTER_ID,
-  numberFromUint32,
-} from "../utils";
+  bigintFromUint64,
+  bigintToUint64,
+  IdentifiedCall,
+  TokenManagerConfig,
+} from "../index";
+import { BaseToken, Token } from "./token";
+import { accountHashFromString, ICP_CANISTER_ID } from "../utils";
 import { Value } from "./icrc1/icrc1.did";
 
 export const ICP = "icp";
@@ -78,6 +85,28 @@ export class IcpToken extends BaseToken implements Partial<Token> {
     return "nonFungible" as const;
   }
 
+  static identifyCall(
+    methodName: string,
+    args: any[]
+  ): IdentifiedCall | undefined {
+    switch (methodName) {
+      case "transfer":
+        return {
+          methodName: "transfer",
+          args: [
+            {
+              to: Buffer.from(args[0].to).toString("hex"),
+              amount: args[0].amount.e8s,
+              fee: args[0].fee.e8s,
+              fromSubaccount: args[0].from_subaccount[0],
+              memo: bigintToUint64(args[0].memo),
+              createdAtTime: args[0].created_at_time[0],
+            },
+          ],
+        };
+    }
+  }
+
   async metadata?() {
     return [
       [`${ICP}:name`, { Text: await this.name!() }],
@@ -124,6 +153,10 @@ export class IcpToken extends BaseToken implements Partial<Token> {
     memo?: Uint8Array;
     createdAtTime?: bigint;
   }): Promise<bigint> {
+    const agent = Actor.agentOf(this._actor);
+    const anonymousAgent =
+      agent instanceof HttpAgent ? new HttpAgent({ source: agent }) : agent;
+    anonymousAgent?.replaceIdentity?.(new AnonymousIdentity());
     const res = await this._actor.transfer({
       to: Uint8Array.from(Buffer.from(accountHashFromString(args.to), "hex")),
       fee: {
@@ -132,11 +165,11 @@ export class IcpToken extends BaseToken implements Partial<Token> {
           // Make query calls within update calls anonymous so that agents from wallets don't have to ask for approval
           (
             await this._actor.transfer_fee.withOptions({
-              agent: makeHttpAgentAnonymous(Actor.agentOf(this._actor)!),
+              agent: anonymousAgent,
             })({})
           ).transfer_fee.e8s,
       },
-      memo: args.memo ? BigInt(numberFromUint32(args.memo, false)) : BigInt(0),
+      memo: args.memo ? bigintFromUint64(args.memo, false) : BigInt(0),
       from_subaccount: args.fromSubaccount ? [args.fromSubaccount] : [],
       created_at_time: args.createdAtTime
         ? [{ timestamp_nanos: args.createdAtTime }]

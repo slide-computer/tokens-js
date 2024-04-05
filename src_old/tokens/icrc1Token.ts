@@ -4,12 +4,16 @@ import { idlFactory } from "./icrc1";
 import {
   accountFromString,
   accountToString,
+  ICP,
+  IcpToken,
+  IdentifiedCall,
+  isAccountHash,
   TokenManagerConfig,
 } from "../index";
 import { BaseToken, Token } from "./token";
 
-export const ICRC1 = "ICRC-1";
-export const ICRC2 = "ICRC-2";
+export const ICRC1 = "icrc1";
+export const ICRC2 = "icrc2";
 
 export type ICRC1_TYPE = typeof ICRC1;
 
@@ -86,6 +90,30 @@ export class Icrc1Token extends BaseToken implements Partial<Token> {
     return "fungible" as const;
   }
 
+  static identifyCall(
+    methodName: string,
+    args: any[]
+  ): IdentifiedCall | undefined {
+    if (methodName === "icrc1_transfer") {
+      return {
+        methodName: "transfer",
+        args: [
+          {
+            to: accountToString({
+              owner: args[0].to.owner,
+              subaccount: args[0].to.subaccount[0],
+            }),
+            amount: args[0].amount,
+            fee: args[0].fee[0],
+            fromSubaccount: args[0].from_subaccount[0],
+            memo: args[0].memo,
+            createdAtTime: args[0].created_at_time[0],
+          },
+        ],
+      };
+    }
+  }
+
   async metadata?() {
     return this._actor.icrc1_metadata();
   }
@@ -118,6 +146,18 @@ export class Icrc1Token extends BaseToken implements Partial<Token> {
   }
 
   async balanceOf?(account: string) {
+    if (
+      IcpToken.canisterIds.includes(Actor.canisterIdOf(this._actor).toText()) &&
+      isAccountHash(account)
+    ) {
+      // Fallback to old ledger methods for account hash
+      return (
+        await IcpToken.create({
+          ...this._config,
+          supportedStandards: [ICP],
+        })
+      ).balanceOf(account);
+    }
     const { owner, subaccount } = accountFromString(account);
     return this._actor.icrc1_balance_of({
       owner,
@@ -133,6 +173,18 @@ export class Icrc1Token extends BaseToken implements Partial<Token> {
     memo?: Uint8Array;
     createdAtTime?: bigint;
   }): Promise<bigint> {
+    if (
+      IcpToken.canisterIds.includes(Actor.canisterIdOf(this._actor).toText()) &&
+      isAccountHash(args.to)
+    ) {
+      // Fallback to old ledger methods for account hash
+      return (
+        await IcpToken.create({
+          ...this._config,
+          supportedStandards: [ICP],
+        })
+      ).transfer(args);
+    }
     const to = accountFromString(args.to);
     const res = await this._actor.icrc1_transfer({
       from_subaccount: args.fromSubaccount ? [args.fromSubaccount] : [],

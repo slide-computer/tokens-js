@@ -1,11 +1,17 @@
-import { TokenManagerConfig } from "../index";
-import { Actor, ActorConfig, ActorSubclass } from "@dfinity/agent";
+import {
+  bigintToUint64,
+  IdentifiedCall,
+  numberFromUint32,
+  subaccountFromIndex,
+  TokenManagerConfig,
+} from "../index";
+import { Actor, ActorConfig, ActorSubclass, HttpAgent } from "@dfinity/agent";
 import { _SERVICE } from "./ext/ext.did";
 import { idlFactory } from "./ext";
 import {
   accountHashFromString,
   accountToHash,
-  actorHost,
+  actorOrigin,
   numberToUint32,
   urlIsImage,
 } from "../utils";
@@ -30,7 +36,19 @@ export const tokenIdToExtTokenId = (canisterId: Principal, index: bigint) => {
     ...canisterId.toUint8Array(),
     ...Array.from(numberToUint32(Number(index), false)),
   ]);
-  return Principal.fromUint8Array(array).toText();
+  return Principal.fromUint8Array(array);
+};
+
+export const tokenIdTFromExtTokenId = (id: Principal) => {
+  const bytes = id.toUint8Array();
+  const padding = Uint8Array.from(new Buffer("\x0Atid"));
+  if (
+    bytes.length < padding.length ||
+    !padding.every((byte, index) => byte === bytes[index])
+  ) {
+    throw Error("Invalid ext token id");
+  }
+  return BigInt(numberFromUint32(bytes.slice(-4), false));
 };
 
 export type ExtMethods<T extends string | undefined = undefined> =
@@ -121,6 +139,28 @@ export class ExtToken extends BaseToken implements Partial<Token> {
       return "nonFungible";
     }
     return "fungible" as const;
+  }
+
+  static identifyCall(
+    methodName: string,
+    args: any[]
+  ): IdentifiedCall | undefined {
+    switch (methodName) {
+      case "transfer":
+        return {
+          methodName: "transfer",
+          args: [
+            {
+              to: args[0].to.address,
+              amount: args[0].amount,
+              tokenId: (args[0].token
+                ? tokenIdTFromExtTokenId(Principal.fromText(args[0].token))
+                : undefined) as any,
+              memo: args[0].memo,
+            },
+          ],
+        };
+    }
   }
 
   async metadata?() {
@@ -270,7 +310,9 @@ export class ExtToken extends BaseToken implements Partial<Token> {
       subaccount: args.fromSubaccount ? [args.fromSubaccount] : [],
       to: { address: accountHashFromString(args.to) },
       token:
-        "tokenId" in args ? tokenIdToExtTokenId(canisterId, args.tokenId) : "",
+        "tokenId" in args
+          ? tokenIdToExtTokenId(canisterId, args.tokenId).toText()
+          : "",
     });
     if ("ok" in res) {
       // EXT does not return transaction id
@@ -307,19 +349,22 @@ export class ExtToken extends BaseToken implements Partial<Token> {
   async assetOf?(tokenId: bigint) {
     const canisterId = Actor.canisterIdOf(this._actor);
     return {
-      location: `${actorHost(this._actor, true)}/?tokenid=${tokenIdToExtTokenId(
-        canisterId,
-        tokenId
-      )}`,
+      location: `${actorOrigin(
+        this._actor,
+        true
+      )}/?tokenid=${tokenIdToExtTokenId(canisterId, tokenId).toText()}`,
     };
   }
 
   async imageOf?(tokenId: bigint) {
     const canisterId = Actor.canisterIdOf(this._actor);
-    const image = `${actorHost(
+    const image = `${actorOrigin(
       this._actor,
       true
-    )}/?tokenid=${tokenIdToExtTokenId(canisterId, tokenId)}&type=thumbnail`;
+    )}/?tokenid=${tokenIdToExtTokenId(
+      canisterId,
+      tokenId
+    ).toText()}&type=thumbnail`;
 
     // Exceptions that return an SVG image that fetches the actual image with JS,
     // since this method intends to return images that can be actually rendered as image,

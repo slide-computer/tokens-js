@@ -1,9 +1,9 @@
 import { Principal } from "@dfinity/principal";
-import { sha224 } from "js-sha256";
 import crc32 from "buffer-crc32";
 import { Buffer } from "buffer";
-import { Actor, Agent, HttpAgent } from "@dfinity/agent";
-import { encode } from "@dfinity/principal/lib/cjs/utils/base32";
+import { Actor, HttpAgent } from "@dfinity/agent";
+import { sha224 } from "@noble/hashes/sha256";
+import { AccountType } from "./tokens/token";
 
 export interface Account {
   owner: Principal;
@@ -11,6 +11,7 @@ export interface Account {
 }
 
 export const ICP_CANISTER_ID = "ryjl3-tyaaa-aaaaa-aaaba-cai";
+export const ACCOUNT_ID_SEP = new TextEncoder().encode("\x0Aaccount-id");
 
 export const accountToString = (account: {
   owner: Principal;
@@ -30,7 +31,7 @@ export const accountToString = (account: {
   const checksumBytes = new Uint8Array(ownerBytes.length + 32);
   checksumBytes.set(ownerBytes);
   checksumBytes.set(account.subaccount, ownerBytes.length);
-  const checksum = encode(crc32(Buffer.from(checksumBytes)));
+  const checksum = base32Encode(crc32(Buffer.from(checksumBytes)));
   const compressedSubaccount = Buffer.from(account.subaccount)
     .toString("hex")
     .replace(/^0+(.*)/, (_, hex) => hex);
@@ -47,7 +48,13 @@ export const accountFromString = (str: string): Account => {
   const chunks = str.split("-");
   const [checksum, hexCompressedSubAccount] = chunks.pop()!.split(".");
   const compressedSubaccount = Uint8Array.from(
-    Buffer.from(hexCompressedSubAccount, "hex")
+    Buffer.from(
+      hexCompressedSubAccount.padStart(
+        Math.ceil(hexCompressedSubAccount.length / 2) * 2,
+        "0"
+      ),
+      "hex"
+    )
   );
   const subaccount = new Uint8Array(32);
   subaccount.set(compressedSubaccount, 32 - compressedSubaccount.length);
@@ -57,7 +64,7 @@ export const accountFromString = (str: string): Account => {
   const checksumBytes = new Uint8Array(ownerBytes.length + 32);
   checksumBytes.set(ownerBytes);
   checksumBytes.set(subaccount, ownerBytes.length);
-  if (encode(crc32(Buffer.from(checksumBytes))) !== checksum) {
+  if (base32Encode(crc32(Buffer.from(checksumBytes))) !== checksum) {
     throw Error("Account textual encoding has invalid checksum");
   }
   return { owner, subaccount };
@@ -68,12 +75,10 @@ export const accountToHash = (account: {
   subaccount?: Uint8Array;
 }): string => {
   const shaObj = sha224.create();
-  shaObj.update([
-    ...Array.from("\x0Aaccount-id").map((c) => c.charCodeAt(0)),
-    ...account.owner.toUint8Array(),
-    ...(account.subaccount ?? subaccountFromIndex(BigInt(0))),
-  ]);
-  const hash = new Uint8Array(shaObj.array());
+  shaObj.update(ACCOUNT_ID_SEP);
+  shaObj.update(account.owner.toUint8Array());
+  shaObj.update(account.subaccount ?? subaccountFromIndex(BigInt(0)));
+  const hash = shaObj.digest();
   const checksum = crc32(Buffer.from(hash));
   return Buffer.from(new Uint8Array([...checksum, ...hash])).toString("hex");
 };
@@ -110,6 +115,16 @@ export const isAccountHash = (address: string) => {
   return arraybufferEqual(checksum.buffer, checksumFromHash.buffer);
 };
 
+export const getAccountType = (value: string): AccountType | undefined => {
+  if (isAccountHash(value)) {
+    return "hash";
+  }
+  try {
+    const account = accountFromString(value);
+    return account.subaccount ? "account" : "principal";
+  } catch (_) {}
+};
+
 export const numberToUint32 = (
   num: number,
   littleEndian?: boolean
@@ -121,6 +136,18 @@ export const numberToUint32 = (
 
 export const numberFromUint32 = (buffer: Uint8Array, littleEndian?: boolean) =>
   new DataView(buffer.buffer).getUint32(0, littleEndian);
+
+export const bigintToUint64 = (
+  bigint: bigint,
+  littleEndian?: boolean
+): Uint8Array => {
+  let b = new ArrayBuffer(8);
+  new DataView(b).setBigUint64(0, bigint, littleEndian);
+  return new Uint8Array(b);
+};
+
+export const bigintFromUint64 = (buffer: Uint8Array, littleEndian?: boolean) =>
+  new DataView(buffer.buffer).getBigUint64(0, littleEndian);
 
 export const arraybufferEqual = (buf1: ArrayBuffer, buf2: ArrayBuffer) => {
   if (buf1 === buf2) {
@@ -144,12 +171,54 @@ export const arraybufferEqual = (buf1: ArrayBuffer, buf2: ArrayBuffer) => {
   return true;
 };
 
+export const base32Alphabet = "abcdefghijklmnopqrstuvwxyz234567";
+
+export const base32Encode = (input: Uint8Array): string => {
+  // How many bits will we skip from the first byte.
+  let skip = 0;
+  // 5 high bits, carry from one byte to the next.
+  let bits = 0;
+
+  // The output string in base32.
+  let output = "";
+
+  function encodeByte(byte: number) {
+    if (skip < 0) {
+      // we have a carry from the previous byte
+      bits |= byte >> -skip;
+    } else {
+      // no carry
+      bits = (byte << skip) & 248;
+    }
+
+    if (skip > 3) {
+      // Not enough data to produce a character, get us another one
+      skip -= 8;
+      return 1;
+    }
+
+    if (skip < 4) {
+      // produce a character
+      output += base32Alphabet[bits >> 3];
+      skip += 5;
+    }
+
+    return 0;
+  }
+
+  for (let i = 0; i < input.length; ) {
+    i += encodeByte(input[i]);
+  }
+
+  return output + (skip < 0 ? base32Alphabet[bits >> 3] : "");
+};
+
 export const intersect = (a: readonly string[], b: readonly string[]) => {
   const setB = new Set(b);
   return [...new Set(a)].filter((x) => setB.has(x));
 };
 
-export const actorHost = (actor: Actor, raw: boolean) => {
+export const actorOrigin = (actor: Actor, raw: boolean) => {
   const agent = Actor.agentOf(actor);
   const canisterId = Actor.canisterIdOf(actor);
   return agent instanceof HttpAgent && agent.isLocal()
@@ -182,23 +251,3 @@ export type UnionToIntersection<U> = (
 ) extends (k: infer I) => void
   ? I
   : never;
-
-// This doesn't use new HttpAgent({ source: agent }) since that relies on instanceof which doesn't work
-// across different http agent versions which are different classes and as a result don't match
-export const makeHttpAgentAnonymous = (agent: Agent) => {
-  const isHttpAgent = "_fetch" in agent && "_isAgent" in agent;
-  if (isHttpAgent) {
-    const anonymousAgent = new HttpAgent();
-    // @ts-ignore
-    anonymousAgent._pipeline = [...agent._pipeline];
-    // @ts-ignore
-    anonymousAgent._fetch = agent._fetch;
-    // @ts-ignore
-    anonymousAgent._host = agent._host;
-    // @ts-ignore
-    anonymousAgent._credentials = agent._credentials;
-
-    return anonymousAgent;
-  }
-  return agent;
-};

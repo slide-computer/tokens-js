@@ -1,6 +1,12 @@
 import { ActorConfig, HttpAgent } from "@dfinity/agent";
 import { intersect, UnionToIntersection } from "./utils";
-import { AccountType, BaseToken, Token, TokenType } from "./tokens/token";
+import {
+  AccountType,
+  BaseToken,
+  IdentifiedCall,
+  Token,
+  TokenType,
+} from "./tokens/token";
 import { ICP_TYPE, IcpMethods, IcpToken } from "./tokens/icpToken";
 // import { SLD_TYPE, SldMethods, SldToken } from "./tokens/sldToken";
 import { EXT_TYPE, ExtMethods, ExtToken } from "./tokens/extToken";
@@ -20,6 +26,7 @@ import {
   Dip721LegacyToken,
 } from "./tokens/dip721LegacyToken";
 import { Icrc1Token } from "./tokens/icrc1Token";
+import { DIP20_TYPE, Dip20Methods, Dip20Token } from "./tokens/dip20Token";
 
 export interface TokenManagerConfig<T extends string | undefined = undefined>
   extends ActorConfig {
@@ -35,6 +42,7 @@ export class TokenManager {
     Dip721V2Token,
     Dip721V2BetaToken,
     Dip721LegacyToken,
+    Dip20Token,
   ];
   private readonly _tokens: (BaseToken & Token)[];
 
@@ -97,12 +105,14 @@ export class TokenManager {
       | DIP721_V2_TYPE
       | DIP721_V2_BETA_TYPE
       | DIP721_LEGACY_TYPE
+      | DIP20_TYPE
       ? IcpMethods<T> &
           // SldMethods<T> &
           ExtMethods<T> &
           Dip721V2Methods<T> &
           Dip721V2BetaMethods<T> &
-          Dip721LegacyMethods<T>
+          Dip721LegacyMethods<T> &
+          Dip20Methods<T>
       : Partial<Token>,
     R = T extends string ? UnionToIntersection<M> : Promise<M>
   >(config: TokenManagerConfig<T>): R {
@@ -144,7 +154,34 @@ export class TokenManager {
   }
 
   static accountType(supportedStandards: string[]): AccountType | undefined {
-    return TokenManager.getTokens(supportedStandards)[0]?.accountType;
+    const accountTypes = TokenManager.getTokens(supportedStandards).map(
+      (token) => token.accountType
+    );
+    if (accountTypes.includes("hash")) {
+      // Least strict account type, all tokens that accept a hash can also accept account and principal
+      return "hash";
+    }
+    if (accountTypes.includes("account")) {
+      // All tokens that accept an account can also accept principal
+      return "account";
+    }
+    if (accountTypes.includes("principal")) {
+      // Only principals are supported, hash is not supported and accounts will use the primary subaccount
+      return "principal";
+    }
+  }
+
+  static identifyCall(
+    supportedStandards: string[],
+    methodName: string,
+    args: any[]
+  ): IdentifiedCall | undefined {
+    for (const token of TokenManager.getTokens(supportedStandards)) {
+      const data = token.identifyCall(methodName, args);
+      if (data) {
+        return data;
+      }
+    }
   }
 
   private static getTokens(supportedStandards: string[]) {
@@ -168,3 +205,4 @@ export * from "./tokens/extToken";
 export * from "./tokens/dip721V2Token";
 export * from "./tokens/dip721V2BetaToken";
 export * from "./tokens/dip721LegacyToken";
+export * from "./tokens/dip20Token";

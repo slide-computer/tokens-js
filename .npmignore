@@ -1,5 +1,5 @@
-**
-
-!lib/**
-!package.json
-!README.md
+/src/
+/node_modules/
+/.idea/
+/tsconfig.json
+/tsconfig-cjs.json

@@ -2,7 +2,7 @@ import { Actor, ActorConfig, ActorSubclass } from "@dfinity/agent";
 import { _SERVICE } from "./dip721Legacy/dip721Legacy.did";
 import { idlFactory } from "./dip721Legacy";
 import { principalFromString } from "../utils";
-import { TokenManagerConfig } from "../index";
+import { IdentifiedCall, TokenManagerConfig } from "../index";
 import { BaseToken, Token } from "./token";
 import { Value } from "./icrc1/icrc1.did";
 
@@ -11,9 +11,9 @@ export const DIP721_LEGACY_MINT = "dip721_legacy_mint";
 export const DIP721_LEGACY_BURN = "dip721_legacy_burn";
 export const DIP721_LEGACY_APPROVAL = "dip721_legacy_approval";
 export const DIP721_LEGACY_TRANSACTION_HISTORY =
-  "dip721_legacy_transaction_history";
+  "DIP721_LEGACY_TRANSACTION_HISTORY";
 export const DIP721_LEGACY_TRANSFER_NOTIFICATION =
-  "dip721_legacy_transfer_notification";
+  "DIP721_LEGACY_TRANSFER_NOTIFICATION";
 
 export type DIP721_LEGACY_TYPE =
   | typeof DIP721_LEGACY
@@ -122,7 +122,14 @@ export class Dip721LegacyToken extends BaseToken implements Partial<Token> {
   }
 
   static tokenType() {
-    return "fungible" as const;
+    return "nonFungible" as const;
+  }
+
+  static identifyCall(
+    methodName: string,
+    args: any[]
+  ): IdentifiedCall | undefined {
+    return;
   }
 
   async metadata?() {

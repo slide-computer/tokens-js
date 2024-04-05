@@ -128,8 +128,19 @@ export interface Token {
   >;
 }
 
+type ValuesOf<T> = T[keyof T];
+
 export type AccountType = "account" | "principal" | "hash";
 export type TokenType = "fungible" | "nonFungible";
+export type IdentifiedCall = ValuesOf<{
+  [Key in Exclude<
+    keyof Token,
+    "logo" | "assetOf" | "imageOf" | "attributesOf" | "identifyCall"
+  >]: {
+    methodName: Key;
+    args: Parameters<Token[Key]>;
+  };
+}>;
 
 export abstract class BaseToken {
   static implementedStandards: readonly string[];
@@ -146,6 +157,11 @@ export abstract class BaseToken {
   ) => Promise<Array<{ name: string; url: string }>>;
 
   static tokenType: (supportedStandard: string[]) => TokenType;
+
+  static identifyCall: (
+    methodName: string,
+    args: any[]
+  ) => IdentifiedCall | undefined;
 
   protected _config: TokenManagerConfig<string>;
 
