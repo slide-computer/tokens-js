@@ -39,64 +39,64 @@ export const Icrc2 = class implements Methods {
   ): ReturnType<DecodeCall<Methods>["decodeCall"]> {
     switch (method) {
       case "icrc2_transfer_from": {
-        const [transfer_args] =
+        const [transferFromArgs] =
           decodeCbor<Parameters<_SERVICE["icrc2_transfer_from"]>>(args);
         return {
           method: "transferFrom",
           args: [
             {
-              amount: transfer_args.amount,
-              fee: transfer_args.fee[0],
+              amount: transferFromArgs.amount,
+              fee: transferFromArgs.fee[0],
               from: encodeAccount({
-                owner: Principal.from(transfer_args.from.owner),
-                subaccount: transfer_args.from.subaccount[0]?.buffer,
+                owner: Principal.from(transferFromArgs.from.owner),
+                subaccount: transferFromArgs.from.subaccount[0]?.buffer,
               }),
               to: encodeAccount({
-                owner: Principal.from(transfer_args.to.owner),
-                subaccount: transfer_args.to.subaccount[0]?.buffer,
+                owner: Principal.from(transferFromArgs.to.owner),
+                subaccount: transferFromArgs.to.subaccount[0]?.buffer,
               }),
-              memo: transfer_args.memo[0],
-              createdAtTime: transfer_args.created_at_time[0],
+              memo: transferFromArgs.memo[0],
+              createdAtTime: transferFromArgs.created_at_time[0],
             },
           ],
         };
       }
       case "icrc2_approve": {
-        const [transfer_args] =
+        const [approveArgs] =
           decodeCbor<Parameters<_SERVICE["icrc2_approve"]>>(args);
         return {
           method: "approve",
           args: [
             {
-              amount: transfer_args.amount,
-              fromSubaccount: transfer_args.from_subaccount[0]?.buffer,
+              amount: approveArgs.amount,
+              fromSubaccount: approveArgs.from_subaccount[0]?.buffer,
               spender: encodeAccount({
-                owner: Principal.from(transfer_args.spender.owner),
-                subaccount: transfer_args.spender.subaccount[0]?.buffer,
+                owner: Principal.from(approveArgs.spender.owner),
+                subaccount: approveArgs.spender.subaccount[0]?.buffer,
               }),
-              fee: transfer_args.fee[0],
-              expiresAt: transfer_args.expires_at[0],
-              memo: transfer_args.memo[0],
-              createdAtTime: transfer_args.created_at_time[0],
-              expectedAllowance: transfer_args.expected_allowance[0],
+              fee: approveArgs.fee[0],
+              expiresAt: approveArgs.expires_at[0],
+              memo: approveArgs.memo[0],
+              createdAtTime: approveArgs.created_at_time[0],
+              expectedAllowance: approveArgs.expected_allowance[0],
             },
           ],
         };
       }
       case "icrc2_allowance": {
-        const [transfer_args] =
+        const [allowanceArgs] =
           decodeCbor<Parameters<_SERVICE["icrc2_allowance"]>>(args);
         return {
           method: "allowance",
           args: [
             {
               account: encodeAccount({
-                owner: Principal.from(transfer_args.account.owner),
-                subaccount: transfer_args.account.subaccount[0]?.buffer,
+                owner: Principal.from(allowanceArgs.account.owner),
+                subaccount: allowanceArgs.account.subaccount[0]?.buffer,
               }),
               spender: encodeAccount({
-                owner: Principal.from(transfer_args.spender.owner),
-                subaccount: transfer_args.spender.subaccount[0]?.buffer,
+                owner: Principal.from(allowanceArgs.spender.owner),
+                subaccount: allowanceArgs.spender.subaccount[0]?.buffer,
               }),
             },
           ],

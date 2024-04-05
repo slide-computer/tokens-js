@@ -46,7 +46,9 @@ export const Icrc1 = class implements Methods {
     return Actor.createActor(idlFactory, config);
   }
 
-  static async supportedStandards(config: ActorConfig) {
+  static async supportedStandards(
+    config: ActorConfig,
+  ): Promise<Array<{ name: string; url: string }>> {
     return this.createActor(config)
       .icrc1_supported_standards()
       .catch(() => []);
@@ -57,22 +59,48 @@ export const Icrc1 = class implements Methods {
     args: ArrayBuffer,
   ): ReturnType<DecodeCall<Methods>["decodeCall"]> {
     switch (method) {
+      case "icrc1_metadata":
+        return { method: "metadata", args: [] };
+      case "icrc1_name":
+        return { method: "name", args: [] };
+      case "icrc1_symbol":
+        return { method: "symbol", args: [] };
+      case "icrc1_total_supply":
+        return { method: "totalSupply", args: [] };
+      case "icrc1_balance_of":
+        const [account] =
+          decodeCbor<Parameters<_SERVICE["icrc1_balance_of"]>>(args);
+        return {
+          method: "balanceOf",
+          args: [
+            encodeAccount({
+              owner: Principal.from(account.owner),
+              subaccount: account.subaccount[0]?.buffer,
+            }),
+          ],
+        };
+      case "icrc1_decimals":
+        return { method: "decimals", args: [] };
+      case "icrc1_fee":
+        return { method: "fee", args: [] };
+      case "icrc1_minting_account":
+        return { method: "mintingAccount", args: [] };
       case "icrc1_transfer": {
-        const [transfer_args] =
+        const [transferArgs] =
           decodeCbor<Parameters<_SERVICE["icrc1_transfer"]>>(args);
         return {
           method: "transfer",
           args: [
             {
-              amount: transfer_args.amount,
-              fee: transfer_args.fee[0],
-              fromSubaccount: transfer_args.from_subaccount[0]?.buffer,
+              amount: transferArgs.amount,
+              fee: transferArgs.fee[0],
+              fromSubaccount: transferArgs.from_subaccount[0]?.buffer,
               to: encodeAccount({
-                owner: Principal.from(transfer_args.to.owner),
-                subaccount: transfer_args.to.subaccount[0]?.buffer,
+                owner: Principal.from(transferArgs.to.owner),
+                subaccount: transferArgs.to.subaccount[0]?.buffer,
               }),
-              memo: transfer_args.memo[0],
-              createdAtTime: transfer_args.created_at_time[0],
+              memo: transferArgs.memo[0],
+              createdAtTime: transferArgs.created_at_time[0],
             },
           ],
         };

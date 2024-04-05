@@ -1,5 +1,5 @@
 {
-  "name": "@slide-computer/tokens-icrc10",
+  "name": "@slide-computer/tokens-dip721-v1",
   "version": "2.0.0",
   "author": "Slide",
   "license": "MIT",
@@ -8,7 +8,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/slide-computer/tokens-js.git",
-    "directory": "packages/tokens-icrc10"
+    "directory": "packages/tokens-dip721-v1"
   },
   "bugs": {
     "url": "https://github.com/slide-computer/tokens-js/issues"

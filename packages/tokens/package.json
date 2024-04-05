@@ -41,8 +41,6 @@
   },
   "peerDependencies": {
     "@dfinity/agent": "^1.0.1",
-    "@dfinity/candid": "^1.0.1",
-    "@dfinity/identity": "^1.0.1",
     "@dfinity/principal": "^1.0.1"
   },
   "dependencies": {

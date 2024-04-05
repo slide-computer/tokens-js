@@ -6,10 +6,14 @@
   "workspaces": {
     "packages": [
       "./packages/tokens",
+      "./packages/tokens-dip20",
+      "./packages/tokens-dip721-v1",
+      "./packages/tokens-dip721-v2",
+      "./packages/tokens-dip721-v2-approval",
+      "./packages/tokens-ext",
       "./packages/tokens-icrc1",
       "./packages/tokens-icrc2",
-      "./packages/tokens-icrc10",
-      "./packages/tokens-ext"
+      "./packages/tokens-icrc10"
     ]
   },
   "scripts": {

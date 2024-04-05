@@ -14,7 +14,9 @@ export const Icrc10 = class {
     return Actor.createActor(idlFactory, config);
   }
 
-  static async supportedStandards(config: ActorConfig) {
+  static async supportedStandards(
+    config: ActorConfig,
+  ): Promise<Array<{ name: string; url: string }>> {
     return this.createActor(config)
       .icrc10_supported_standards()
       .catch(() => []);
