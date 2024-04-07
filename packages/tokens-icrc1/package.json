@@ -40,9 +40,9 @@
     "build": "tsc -b && tsc -p tsconfig-cjs.json"
   },
   "peerDependencies": {
-    "@slide-computer/tokens": "^2.0.0",
     "@dfinity/agent": "^1.0.1",
-    "@dfinity/principal": "^1.0.1"
+    "@dfinity/principal": "^1.0.1",
+    "@slide-computer/tokens": "^2.0.0"
   },
   "dependencies": {
     "buffer": "^6.0.3"

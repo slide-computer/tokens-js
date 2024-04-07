@@ -13,6 +13,7 @@
       "./packages/tokens-ext",
       "./packages/tokens-icrc1",
       "./packages/tokens-icrc2",
+      "./packages/tokens-icrc7",
       "./packages/tokens-icrc10"
     ]
   },

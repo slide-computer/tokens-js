@@ -1,9 +1,9 @@
 import {
   type CollectionApproval,
   type CreateActor,
+  createCandidDecoder,
   decodeAccount,
   type DecodeCall,
-  decodeCbor,
   type ImplementedStandards,
   type NonFungibleTokenMethods,
   type SupportedStandards,
@@ -21,11 +21,9 @@ type Methods = Pick<
 export const Dip721V2Approval = class implements Methods {
   static implementedStandards = ["DIP-721-V2-APPROVAL"] as const;
 
-  #config: TokenConfig;
-  #actor: ActorSubclass<_SERVICE>;
+  readonly #actor: ActorSubclass<_SERVICE>;
 
   constructor(config: TokenConfig) {
-    this.#config = config;
     this.#actor = Dip721V2Approval.createActor(config);
   }
 
@@ -59,24 +57,28 @@ export const Dip721V2Approval = class implements Methods {
     method: string,
     args: ArrayBuffer,
   ): ReturnType<DecodeCall<Methods>["decodeCall"]> {
-    switch (method) {
-      case "dip721_transfer_from": {
-        const [from, to, tokenId] =
-          decodeCbor<Parameters<_SERVICE["dip721_transfer_from"]>>(args);
-        return {
-          method: "transferTokenFrom",
-          args: [{ from: from.toText(), to: to.toText(), tokenId }],
-        };
+    const { decodeArgs } = createCandidDecoder<_SERVICE>(idlFactory);
+    try {
+      switch (method) {
+        case "dip721_transfer_from": {
+          const [from, to, tokenId] = decodeArgs("dip721_transfer_from", args);
+          return {
+            method: "transferTokenFrom",
+            args: [{ from: from.toText(), to: to.toText(), tokenId }],
+          };
+        }
+        case "dip721_set_approval_for_all": {
+          const [spender, approve] = decodeArgs(
+            "dip721_set_approval_for_all",
+            args,
+          );
+          return {
+            method: approve ? "approveCollection" : "revokeCollectionApproval",
+            args: [{ spender: spender.toText() }],
+          };
+        }
       }
-      case "dip721_set_approval_for_all": {
-        const [spender, approve] =
-          decodeCbor<Parameters<_SERVICE["dip721_set_approval_for_all"]>>(args);
-        return {
-          method: approve ? "approveCollection" : "revokeCollectionApproval",
-          args: [{ spender: spender.toText() }],
-        };
-      }
-    }
+    } catch {}
   }
 
   async transferTokenFrom(args: {

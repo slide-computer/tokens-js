@@ -5,7 +5,9 @@
     "composite": true,
     "outDir": "./lib/cjs",
     "paths": {
-      "@slide-computer/tokens": ["../tokens"]
+      "@slide-computer/tokens": [
+        "../tokens"
+      ]
     },
     "rootDir": "./src"
   },
@@ -13,5 +15,9 @@
     "types/*",
     "src/**/*"
   ],
-  "references": [{ "path": "../tokens" }]
+  "references": [
+    {
+      "path": "../tokens"
+    }
+  ]
 }

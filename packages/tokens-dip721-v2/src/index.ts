@@ -1,9 +1,9 @@
 import {
   type CommonTokenMethods,
   type CreateActor,
+  createCandidDecoder,
   decodeAccount,
   type DecodeCall,
-  decodeCbor,
   type ImplementedStandards,
   type MetadataValue,
   type NonFungibleTokenMethods,
@@ -27,8 +27,8 @@ type Methods = Pick<
 export const Dip721V2 = class implements Methods {
   static implementedStandards = ["DIP-721-V2"] as const;
 
-  #config: TokenConfig;
-  #actor: ActorSubclass<_SERVICE>;
+  readonly #config: TokenConfig;
+  readonly #actor: ActorSubclass<_SERVICE>;
 
   constructor(config: TokenConfig) {
     this.#config = config;
@@ -57,44 +57,42 @@ export const Dip721V2 = class implements Methods {
     method: string,
     args: ArrayBuffer,
   ): ReturnType<DecodeCall<Methods>["decodeCall"]> {
-    switch (method) {
-      case "dip721_metadata":
-        return { method: "metadata", args: [] };
-      case "dip721_symbol":
-        return { method: "symbol", args: [] };
-      case "dip721_logo":
-        return { method: "logo", args: [] };
-      case "dip721_total_supply":
-        return { method: "totalSupply", args: [] };
-      case "dip721_balance_of": {
-        const [account] =
-          decodeCbor<Parameters<_SERVICE["dip721_balance_of"]>>(args);
-        return { method: "balanceOf", args: [account.toText()] };
+    const { decodeArgs } = createCandidDecoder<_SERVICE>(idlFactory);
+    try {
+      switch (method) {
+        case "dip721_metadata":
+          return { method: "metadata", args: [] };
+        case "dip721_symbol":
+          return { method: "symbol", args: [] };
+        case "dip721_logo":
+          return { method: "logo", args: [] };
+        case "dip721_total_supply":
+          return { method: "totalSupply", args: [] };
+        case "dip721_balance_of": {
+          const [account] = decodeArgs("dip721_balance_of", args);
+          return { method: "balanceOf", args: [account.toText()] };
+        }
+        case "dip721_token_metadata": {
+          const [tokenId] = decodeArgs("dip721_token_metadata", args);
+          return { method: "tokenMetadata", args: [tokenId] };
+        }
+        case "dip721_owner_of": {
+          const [tokenId] = decodeArgs("dip721_owner_of", args);
+          return { method: "ownerOf", args: [tokenId] };
+        }
+        case "dip721_owner_token_metadata": {
+          const [account] = decodeArgs("dip721_owner_token_metadata", args);
+          return { method: "tokensOf", args: [account.toText()] };
+        }
+        case "dip721_transfer": {
+          const [to, tokenId] = decodeArgs("dip721_transfer", args);
+          return {
+            method: "transferToken",
+            args: [{ to: to.toText(), tokenId }],
+          };
+        }
       }
-      case "dip721_token_metadata": {
-        const [tokenId] =
-          decodeCbor<Parameters<_SERVICE["dip721_token_metadata"]>>(args);
-        return { method: "tokenMetadata", args: [tokenId] };
-      }
-      case "dip721_owner_of": {
-        const [tokenId] =
-          decodeCbor<Parameters<_SERVICE["dip721_owner_of"]>>(args);
-        return { method: "ownerOf", args: [tokenId] };
-      }
-      case "dip721_owner_token_metadata": {
-        const [account] =
-          decodeCbor<Parameters<_SERVICE["dip721_owner_token_metadata"]>>(args);
-        return { method: "tokensOf", args: [account.toText()] };
-      }
-      case "dip721_transfer": {
-        const [to, tokenId] =
-          decodeCbor<Parameters<_SERVICE["dip721_transfer"]>>(args);
-        return {
-          method: "transferToken",
-          args: [{ to: to.toText(), tokenId }],
-        };
-      }
-    }
+    } catch {}
   }
 
   async metadata(): Promise<Array<[string, MetadataValue]>> {

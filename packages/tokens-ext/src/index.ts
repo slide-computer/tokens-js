@@ -1,9 +1,9 @@
 import {
   type CommonTokenMethods,
   type CreateActor,
+  createCandidDecoder,
   decodeAccount,
   type DecodeCall,
-  decodeCbor,
   hashAccount,
   type ImplementedStandards,
   isAccountHash,
@@ -76,40 +76,42 @@ export const Ext = class implements Methods {
     method: string,
     args: ArrayBuffer,
   ): ReturnType<DecodeCall<Methods>["decodeCall"]> {
-    switch (method) {
-      case "getTokens":
-        return {
-          method: "tokens",
-          args: [],
-        };
-      case "tokens": {
-        const [account] = decodeCbor<Parameters<_SERVICE["tokens"]>>(args);
-        return {
-          method: "tokensOf",
-          args: [account],
-        };
+    const { decodeArgs } = createCandidDecoder<_SERVICE>(idlFactory);
+    try {
+      switch (method) {
+        case "getTokens":
+          return {
+            method: "tokens",
+            args: [],
+          };
+        case "tokens": {
+          const [account] = decodeArgs("tokens", args);
+          return {
+            method: "tokensOf",
+            args: [account],
+          };
+        }
+        case "transfer": {
+          const [transferRequest] = decodeArgs("transfer", args);
+          return {
+            method: "transferToken",
+            args: [
+              {
+                tokenId: tokenIndexFromId(
+                  Principal.fromText(transferRequest.token),
+                ),
+                fromSubaccount: transferRequest.subaccount[0]?.buffer,
+                to:
+                  "address" in transferRequest.to
+                    ? transferRequest.to.address
+                    : Principal.from(transferRequest.to.principal).toText(),
+                memo: transferRequest.memo,
+              },
+            ],
+          };
+        }
       }
-      case "transfer": {
-        const [transferRequest] =
-          decodeCbor<Parameters<_SERVICE["transfer"]>>(args);
-        return {
-          method: "transferToken",
-          args: [
-            {
-              tokenId: tokenIndexFromId(
-                Principal.fromText(transferRequest.token),
-              ),
-              fromSubaccount: transferRequest.subaccount[0]?.buffer,
-              to:
-                "address" in transferRequest.to
-                  ? transferRequest.to.address
-                  : Principal.from(transferRequest.to.principal).toText(),
-              memo: transferRequest.memo,
-            },
-          ],
-        };
-      }
-    }
+    } catch {}
   }
 
   async metadata(): Promise<[string, MetadataValue][]> {

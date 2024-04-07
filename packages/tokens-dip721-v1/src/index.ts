@@ -1,9 +1,9 @@
 import {
   type CommonTokenMethods,
   type CreateActor,
+  createCandidDecoder,
   decodeAccount,
   type DecodeCall,
-  decodeCbor,
   type ImplementedStandards,
   type MetadataValue,
   type NonFungibleTokenMethods,
@@ -27,8 +27,8 @@ type Methods = Pick<
 export const Dip721V1 = class implements Methods {
   static implementedStandards = ["DIP-721-V1"] as const;
 
-  #config: TokenConfig;
-  #actor: ActorSubclass<_SERVICE>;
+  readonly #config: TokenConfig;
+  readonly #actor: ActorSubclass<_SERVICE>;
 
   constructor(config: TokenConfig) {
     this.#config = config;
@@ -57,59 +57,57 @@ export const Dip721V1 = class implements Methods {
     method: string,
     args: ArrayBuffer,
   ): ReturnType<DecodeCall<Methods>["decodeCall"]> {
-    switch (method) {
-      case "nameDip721":
-        return { method: "name", args: [] };
-      case "symbolDip721":
-        return { method: "symbol", args: [] };
-      case "totalSupplyDip721":
-        return { method: "totalSupply", args: [] };
-      case "balanceOfDip721": {
-        const [account] =
-          decodeCbor<Parameters<_SERVICE["balanceOfDip721"]>>(args);
-        return {
-          method: "balanceOf",
-          args: [Principal.from(account).toText()],
-        };
+    const { decodeArgs } = createCandidDecoder<_SERVICE>(idlFactory);
+    try {
+      switch (method) {
+        case "nameDip721":
+          return { method: "name", args: [] };
+        case "symbolDip721":
+          return { method: "symbol", args: [] };
+        case "totalSupplyDip721":
+          return { method: "totalSupply", args: [] };
+        case "balanceOfDip721": {
+          const [account] = decodeArgs("balanceOfDip721", args);
+          return {
+            method: "balanceOf",
+            args: [Principal.from(account).toText()],
+          };
+        }
+        case "getMetadataDip721": {
+          const [tokenId] = decodeArgs("getMetadataDip721", args);
+          return {
+            method: "tokenMetadata",
+            args: [tokenId],
+          };
+        }
+        case "ownerOfDip721": {
+          const [tokenId] = decodeArgs("ownerOfDip721", args);
+          return {
+            method: "ownerOf",
+            args: [tokenId],
+          };
+        }
+        case "getTokenIdsForUserDip721": {
+          const [account] = decodeArgs("getTokenIdsForUserDip721", args);
+          return {
+            method: "tokensOf",
+            args: [Principal.from(account).toText()],
+          };
+        }
+        case "transferFromDip721": {
+          const [, to, tokenId] = decodeArgs("transferFromDip721", args);
+          return {
+            method: "transferToken",
+            args: [
+              {
+                to: Principal.from(to).toText(),
+                tokenId,
+              },
+            ],
+          };
+        }
       }
-      case "getMetadataDip721": {
-        const [tokenId] =
-          decodeCbor<Parameters<_SERVICE["getMetadataDip721"]>>(args);
-        return {
-          method: "tokenMetadata",
-          args: [tokenId],
-        };
-      }
-      case "ownerOfDip721": {
-        const [tokenId] =
-          decodeCbor<Parameters<_SERVICE["ownerOfDip721"]>>(args);
-        return {
-          method: "ownerOf",
-          args: [tokenId],
-        };
-      }
-      case "getTokenIdsForUserDip721": {
-        const [account] =
-          decodeCbor<Parameters<_SERVICE["getTokenIdsForUserDip721"]>>(args);
-        return {
-          method: "tokensOf",
-          args: [Principal.from(account).toText()],
-        };
-      }
-      case "transferFromDip721": {
-        const [, to, tokenId] =
-          decodeCbor<Parameters<_SERVICE["transferFromDip721"]>>(args);
-        return {
-          method: "transferToken",
-          args: [
-            {
-              to: Principal.from(to).toText(),
-              tokenId,
-            },
-          ],
-        };
-      }
-    }
+    } catch {}
   }
 
   async name(): Promise<string> {

@@ -1,9 +1,9 @@
 import {
   type CommonTokenMethods,
   type CreateActor,
+  createCandidDecoder,
   decodeAccount,
   type DecodeCall,
-  decodeCbor,
   encodeAccount,
   type FungibleTokenMethods,
   type ImplementedStandards,
@@ -12,7 +12,6 @@ import {
   type TokenConfig,
 } from "@slide-computer/tokens";
 import { Actor, type ActorConfig, type ActorSubclass } from "@dfinity/agent";
-import { Principal } from "@dfinity/principal";
 import { idlFactory } from "./idl";
 import { type _SERVICE } from "./service";
 
@@ -34,8 +33,8 @@ type Methods = Pick<
 export const Icrc1 = class implements Methods {
   static implementedStandards = ["ICRC-1"] as const;
 
-  #config: TokenConfig;
-  #actor: ActorSubclass<_SERVICE>;
+  readonly #config: TokenConfig;
+  readonly #actor: ActorSubclass<_SERVICE>;
 
   constructor(config: TokenConfig) {
     this.#config = config;
@@ -58,54 +57,55 @@ export const Icrc1 = class implements Methods {
     method: string,
     args: ArrayBuffer,
   ): ReturnType<DecodeCall<Methods>["decodeCall"]> {
-    switch (method) {
-      case "icrc1_metadata":
-        return { method: "metadata", args: [] };
-      case "icrc1_name":
-        return { method: "name", args: [] };
-      case "icrc1_symbol":
-        return { method: "symbol", args: [] };
-      case "icrc1_total_supply":
-        return { method: "totalSupply", args: [] };
-      case "icrc1_balance_of":
-        const [account] =
-          decodeCbor<Parameters<_SERVICE["icrc1_balance_of"]>>(args);
-        return {
-          method: "balanceOf",
-          args: [
-            encodeAccount({
-              owner: Principal.from(account.owner),
-              subaccount: account.subaccount[0]?.buffer,
-            }),
-          ],
-        };
-      case "icrc1_decimals":
-        return { method: "decimals", args: [] };
-      case "icrc1_fee":
-        return { method: "fee", args: [] };
-      case "icrc1_minting_account":
-        return { method: "mintingAccount", args: [] };
-      case "icrc1_transfer": {
-        const [transferArgs] =
-          decodeCbor<Parameters<_SERVICE["icrc1_transfer"]>>(args);
-        return {
-          method: "transfer",
-          args: [
-            {
-              amount: transferArgs.amount,
-              fee: transferArgs.fee[0],
-              fromSubaccount: transferArgs.from_subaccount[0]?.buffer,
-              to: encodeAccount({
-                owner: Principal.from(transferArgs.to.owner),
-                subaccount: transferArgs.to.subaccount[0]?.buffer,
+    const { decodeArgs } = createCandidDecoder<_SERVICE>(idlFactory);
+    try {
+      switch (method) {
+        case "icrc1_metadata":
+          return { method: "metadata", args: [] };
+        case "icrc1_name":
+          return { method: "name", args: [] };
+        case "icrc1_symbol":
+          return { method: "symbol", args: [] };
+        case "icrc1_total_supply":
+          return { method: "totalSupply", args: [] };
+        case "icrc1_balance_of":
+          const [account] = decodeArgs("icrc1_balance_of", args);
+          return {
+            method: "balanceOf",
+            args: [
+              encodeAccount({
+                owner: account.owner,
+                subaccount: account.subaccount[0]?.buffer,
               }),
-              memo: transferArgs.memo[0],
-              createdAtTime: transferArgs.created_at_time[0],
-            },
-          ],
-        };
+            ],
+          };
+        case "icrc1_decimals":
+          return { method: "decimals", args: [] };
+        case "icrc1_fee":
+          return { method: "fee", args: [] };
+        case "icrc1_minting_account":
+          return { method: "mintingAccount", args: [] };
+        case "icrc1_transfer": {
+          const [transferArgs] = decodeArgs("icrc1_transfer", args);
+          return {
+            method: "transfer",
+            args: [
+              {
+                amount: transferArgs.amount,
+                fee: transferArgs.fee[0],
+                fromSubaccount: transferArgs.from_subaccount[0]?.buffer,
+                to: encodeAccount({
+                  owner: transferArgs.to.owner,
+                  subaccount: transferArgs.to.subaccount[0]?.buffer,
+                }),
+                memo: transferArgs.memo[0],
+                createdAtTime: transferArgs.created_at_time[0],
+              },
+            ],
+          };
+        }
       }
-    }
+    } catch {}
   }
 
   async metadata(): Promise<[string, MetadataValue][]> {
@@ -142,11 +142,14 @@ export const Icrc1 = class implements Methods {
 
   async maxMemoSize(): Promise<number> {
     const metadata = await this.metadata();
-    const logo = metadata.find(([key, value]) => key === "icrc1:max_memo_size");
-    if (logo && "Nat" in logo[1]) {
-      return Number(logo[1].Nat);
+    const maxMemoSize = metadata.find(
+      ([key, value]) => key === "icrc1:max_memo_size",
+    );
+    if (!maxMemoSize || !("Nat" in maxMemoSize[1])) {
+      // Minimum value defined ICRC-1 standard
+      return 32;
     }
-    return 32;
+    return Number(maxMemoSize[1].Nat);
   }
 
   async balanceOf(account: string): Promise<bigint> {

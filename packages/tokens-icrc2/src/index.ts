@@ -1,8 +1,8 @@
 import {
   type CreateActor,
+  createCandidDecoder,
   decodeAccount,
   type DecodeCall,
-  decodeCbor,
   encodeAccount,
   type FungibleTokenMethods,
   type ImplementedStandards,
@@ -21,8 +21,8 @@ type Methods = Pick<
 export const Icrc2 = class implements Methods {
   static implementedStandards = ["ICRC-1"] as const;
 
-  #config: TokenConfig;
-  #actor: ActorSubclass<_SERVICE>;
+  readonly #config: TokenConfig;
+  readonly #actor: ActorSubclass<_SERVICE>;
 
   constructor(config: TokenConfig) {
     this.#config = config;
@@ -37,72 +37,72 @@ export const Icrc2 = class implements Methods {
     method: string,
     args: ArrayBuffer,
   ): ReturnType<DecodeCall<Methods>["decodeCall"]> {
-    switch (method) {
-      case "icrc2_transfer_from": {
-        const [transferFromArgs] =
-          decodeCbor<Parameters<_SERVICE["icrc2_transfer_from"]>>(args);
-        return {
-          method: "transferFrom",
-          args: [
-            {
-              amount: transferFromArgs.amount,
-              fee: transferFromArgs.fee[0],
-              from: encodeAccount({
-                owner: Principal.from(transferFromArgs.from.owner),
-                subaccount: transferFromArgs.from.subaccount[0]?.buffer,
-              }),
-              to: encodeAccount({
-                owner: Principal.from(transferFromArgs.to.owner),
-                subaccount: transferFromArgs.to.subaccount[0]?.buffer,
-              }),
-              memo: transferFromArgs.memo[0],
-              createdAtTime: transferFromArgs.created_at_time[0],
-            },
-          ],
-        };
+    const { decodeArgs } = createCandidDecoder<_SERVICE>(idlFactory);
+    try {
+      switch (method) {
+        case "icrc2_transfer_from": {
+          const [transferFromArgs] = decodeArgs("icrc2_transfer_from", args);
+          return {
+            method: "transferFrom",
+            args: [
+              {
+                amount: transferFromArgs.amount,
+                fee: transferFromArgs.fee[0],
+                from: encodeAccount({
+                  owner: Principal.from(transferFromArgs.from.owner),
+                  subaccount: transferFromArgs.from.subaccount[0]?.buffer,
+                }),
+                to: encodeAccount({
+                  owner: Principal.from(transferFromArgs.to.owner),
+                  subaccount: transferFromArgs.to.subaccount[0]?.buffer,
+                }),
+                memo: transferFromArgs.memo[0],
+                createdAtTime: transferFromArgs.created_at_time[0],
+              },
+            ],
+          };
+        }
+        case "icrc2_approve": {
+          const [approveArgs] = decodeArgs("icrc2_approve", args);
+          return {
+            method: "approve",
+            args: [
+              {
+                amount: approveArgs.amount,
+                fromSubaccount: approveArgs.from_subaccount[0]?.buffer,
+                spender: encodeAccount({
+                  owner: Principal.from(approveArgs.spender.owner),
+                  subaccount: approveArgs.spender.subaccount[0]?.buffer,
+                }),
+                fee: approveArgs.fee[0],
+                expiresAt: approveArgs.expires_at[0],
+                memo: approveArgs.memo[0],
+                createdAtTime: approveArgs.created_at_time[0],
+                expectedAllowance: approveArgs.expected_allowance[0],
+              },
+            ],
+          };
+        }
+        case "icrc2_allowance": {
+          const [allowanceArgs] = decodeArgs("icrc2_allowance", args);
+          return {
+            method: "allowance",
+            args: [
+              {
+                account: encodeAccount({
+                  owner: Principal.from(allowanceArgs.account.owner),
+                  subaccount: allowanceArgs.account.subaccount[0]?.buffer,
+                }),
+                spender: encodeAccount({
+                  owner: Principal.from(allowanceArgs.spender.owner),
+                  subaccount: allowanceArgs.spender.subaccount[0]?.buffer,
+                }),
+              },
+            ],
+          };
+        }
       }
-      case "icrc2_approve": {
-        const [approveArgs] =
-          decodeCbor<Parameters<_SERVICE["icrc2_approve"]>>(args);
-        return {
-          method: "approve",
-          args: [
-            {
-              amount: approveArgs.amount,
-              fromSubaccount: approveArgs.from_subaccount[0]?.buffer,
-              spender: encodeAccount({
-                owner: Principal.from(approveArgs.spender.owner),
-                subaccount: approveArgs.spender.subaccount[0]?.buffer,
-              }),
-              fee: approveArgs.fee[0],
-              expiresAt: approveArgs.expires_at[0],
-              memo: approveArgs.memo[0],
-              createdAtTime: approveArgs.created_at_time[0],
-              expectedAllowance: approveArgs.expected_allowance[0],
-            },
-          ],
-        };
-      }
-      case "icrc2_allowance": {
-        const [allowanceArgs] =
-          decodeCbor<Parameters<_SERVICE["icrc2_allowance"]>>(args);
-        return {
-          method: "allowance",
-          args: [
-            {
-              account: encodeAccount({
-                owner: Principal.from(allowanceArgs.account.owner),
-                subaccount: allowanceArgs.account.subaccount[0]?.buffer,
-              }),
-              spender: encodeAccount({
-                owner: Principal.from(allowanceArgs.spender.owner),
-                subaccount: allowanceArgs.spender.subaccount[0]?.buffer,
-              }),
-            },
-          ],
-        };
-      }
-    }
+    } catch {}
   }
 
   async transferFrom(args: {

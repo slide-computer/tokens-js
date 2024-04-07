@@ -1,8 +1,11 @@
 import type {
+  CommonTokenBatchMethods,
   CommonTokenMethods,
   DecodeCall,
+  FungibleTokenBatchMethods,
   FungibleTokenMethods,
   ImplementedStandards,
+  NonFungibleTokenBatchMethods,
   NonFungibleTokenMethods,
   SupportedStandards,
   SupportedStandardsWithoutConfig,
@@ -19,7 +22,12 @@ type TokenImplementation = SupportedStandards &
   (new (
     config: TokenConfig,
   ) => Partial<
-    CommonTokenMethods & FungibleTokenMethods & NonFungibleTokenMethods
+    CommonTokenMethods &
+      FungibleTokenMethods &
+      NonFungibleTokenMethods &
+      CommonTokenBatchMethods &
+      FungibleTokenBatchMethods &
+      NonFungibleTokenBatchMethods
   >);
 
 type SupportedToken<

@@ -1,9 +1,9 @@
 import {
   type CommonTokenMethods,
   type CreateActor,
+  createCandidDecoder,
   decodeAccount,
   type DecodeCall,
-  decodeCbor,
   type FungibleTokenMethods,
   type ImplementedStandards,
   type MetadataValue,
@@ -28,8 +28,8 @@ type Methods = Pick<
 export const Dip20 = class implements Methods {
   static implementedStandards = ["DIP-20"] as const;
 
-  #config: TokenConfig;
-  #actor: ActorSubclass<_SERVICE>;
+  readonly #config: TokenConfig;
+  readonly #actor: ActorSubclass<_SERVICE>;
 
   constructor(config: TokenConfig) {
     this.#config = config;
@@ -77,42 +77,45 @@ export const Dip20 = class implements Methods {
     method: string,
     args: ArrayBuffer,
   ): ReturnType<DecodeCall<Methods>["decodeCall"]> {
-    switch (method) {
-      case "getMetadata":
-        return { method: "metadata", args: [] };
-      case "name":
-        return { method: "name", args: [] };
-      case "symbol":
-        return { method: "symbol", args: [] };
-      case "logo":
-        return { method: "logo", args: [] };
-      case "totalSupply":
-        return { method: "totalSupply", args: [] };
-      case "balanceOf": {
-        const [account] = decodeCbor<Parameters<_SERVICE["balanceOf"]>>(args);
-        return {
-          method: "balanceOf",
-          args: [Principal.from(account).toText()],
-        };
+    const { decodeArgs } = createCandidDecoder<_SERVICE>(idlFactory);
+    try {
+      switch (method) {
+        case "getMetadata":
+          return { method: "metadata", args: [] };
+        case "name":
+          return { method: "name", args: [] };
+        case "symbol":
+          return { method: "symbol", args: [] };
+        case "logo":
+          return { method: "logo", args: [] };
+        case "totalSupply":
+          return { method: "totalSupply", args: [] };
+        case "balanceOf": {
+          const [account] = decodeArgs("balanceOf", args);
+          return {
+            method: "balanceOf",
+            args: [Principal.from(account).toText()],
+          };
+        }
+        case "decimals":
+          return {
+            method: "decimals",
+            args: [],
+          };
+        case "transfer": {
+          const [to, amount] = decodeArgs("transfer", args);
+          return {
+            method: "transfer",
+            args: [
+              {
+                to: Principal.from(to).toText(),
+                amount,
+              },
+            ],
+          };
+        }
       }
-      case "decimals":
-        return {
-          method: "decimals",
-          args: [],
-        };
-      case "transfer": {
-        const [to, amount] = decodeCbor<Parameters<_SERVICE["transfer"]>>(args);
-        return {
-          method: "transfer",
-          args: [
-            {
-              to: Principal.from(to).toText(),
-              amount,
-            },
-          ],
-        };
-      }
-    }
+    } catch {}
   }
 
   async metadata(): Promise<[string, MetadataValue][]> {
