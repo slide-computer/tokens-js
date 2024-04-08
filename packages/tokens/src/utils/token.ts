@@ -1,14 +1,17 @@
 import type {
+  Attribute,
   CommonTokenBatchMethods,
   CommonTokenMethods,
   DecodeCall,
   FungibleTokenBatchMethods,
   FungibleTokenMethods,
   ImplementedStandards,
+  MetadataValue,
   NonFungibleTokenBatchMethods,
   NonFungibleTokenMethods,
   SupportedStandards,
   SupportedStandardsWithoutConfig,
+  TokenMetadataMethods,
 } from "../types";
 import type { ActorConfig, Agent } from "@dfinity/agent";
 
@@ -18,7 +21,7 @@ export type TokenConfig = ActorConfig & {
 
 type TokenImplementation = SupportedStandards &
   ImplementedStandards &
-  Partial<DecodeCall<any>> &
+  Partial<DecodeCall<any> & TokenMetadataMethods> &
   (new (
     config: TokenConfig,
   ) => Partial<
@@ -60,7 +63,8 @@ export const createToken = <
     ImplementedStandards &
     (Tokens extends DecodeCall<any>
       ? Pick<Tokens, "decodeCall">
-      : DecodeCall<unknown>),
+      : DecodeCall<unknown>) &
+    TokenMetadataMethods,
   PossiblyPromise = Config["supportedStandards"] extends
     | string[]
     | readonly string[]
@@ -100,7 +104,8 @@ export const createToken = <
 
   const tokensWrapper: SupportedStandardsWithoutConfig &
     ImplementedStandards &
-    DecodeCall<any> = {
+    DecodeCall<any> &
+    TokenMetadataMethods = {
     implementedStandards: config.supportedStandards,
 
     async supportedStandards(): Promise<Array<{ name: string; url: string }>> {
@@ -111,14 +116,72 @@ export const createToken = <
       ).flat();
     },
 
-    decodeCall(method: string, args: ArrayBuffer) {
-      supportedTokens.forEach((token) => {
-        const decoded = token.decodeCall?.(method, args);
+    decodeCall(
+      method: string,
+      args: ArrayBuffer,
+    ): ReturnType<DecodeCall<any>["decodeCall"]> {
+      for (let supportedToken of supportedTokens) {
+        const decoded = supportedToken.decodeCall?.(method, args);
         if (decoded) {
           return decoded;
         }
-      });
-      return undefined;
+      }
+    },
+
+    tokenMetadataToName(
+      metadata: Array<[string, MetadataValue]>,
+    ): string | undefined {
+      for (let supportedToken of supportedTokens) {
+        const name = supportedToken.tokenMetadataToName?.(metadata);
+        if (name) {
+          return name;
+        }
+      }
+    },
+
+    tokenMetadataToDescription(
+      metadata: Array<[string, MetadataValue]>,
+    ): string | undefined {
+      for (let supportedToken of supportedTokens) {
+        const description =
+          supportedToken.tokenMetadataToDescription?.(metadata);
+        if (description) {
+          return description;
+        }
+      }
+    },
+
+    tokenMetadataToImage(
+      metadata: Array<[string, MetadataValue]>,
+    ): string | undefined {
+      for (let supportedToken of supportedTokens) {
+        const image = supportedToken.tokenMetadataToImage?.(metadata);
+        if (image) {
+          return image;
+        }
+      }
+    },
+
+    tokenMetadataToUrl(
+      metadata: Array<[string, MetadataValue]>,
+    ): string | undefined {
+      for (let supportedToken of supportedTokens) {
+        const url = supportedToken.tokenMetadataToUrl?.(metadata);
+        if (url) {
+          return url;
+        }
+      }
+    },
+
+    tokenMetadataToAttributes(
+      metadata: Array<[string, MetadataValue]>,
+    ): Attribute[] | undefined {
+      for (let supportedToken of supportedTokens) {
+        const attributes = supportedToken.tokenMetadataToAttributes?.(metadata);
+        if (attributes) {
+          return attributes;
+        }
+      }
     },
   };
 

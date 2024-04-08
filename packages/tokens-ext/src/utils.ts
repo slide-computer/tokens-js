@@ -1,5 +1,6 @@
 import { Principal } from "@dfinity/principal";
 import { Buffer } from "buffer";
+import type { MetadataValue } from "@slide-computer/tokens";
 
 export const getCollections = async (): Promise<
   Array<{
@@ -58,16 +59,50 @@ export const getCollectionFilters = async (
   } catch (_) {}
 };
 
+export const filtersToTokenAttributes = (
+  filters: Filters,
+  tokenId: bigint,
+): MetadataValue | undefined => {
+  const [attributes, tokens] = filters;
+  const token = tokens.find(([index]) => index === Number(tokenId));
+  if (!token) {
+    return;
+  }
+  return {
+    Map: attributes.map(([attributeIndex, attributeLabel, attributeValues]) => {
+      const tokenAttribute = token[1].find(
+        ([tokenAttributeIndex]) => tokenAttributeIndex === attributeIndex,
+      );
+      if (!tokenAttribute) {
+        throw Error("Attribute cannot be found");
+      }
+      const tokenAttributeValueIndex = tokenAttribute[1];
+      const attributeValue = attributeValues.find(
+        ([attributeValueIndex]) =>
+          attributeValueIndex === tokenAttributeValueIndex,
+      );
+      if (!attributeValue) {
+        throw Error("Attribute value cannot be found");
+      }
+      const attributeValueLabel = attributeValue[1];
+      return [attributeLabel, { Text: attributeValueLabel }];
+    }),
+  };
+};
+
 const numberToUint32 = (num: number, littleEndian?: boolean): Uint8Array => {
   let b = new ArrayBuffer(4);
   new DataView(b).setUint32(0, num, littleEndian);
   return new Uint8Array(b);
 };
 
-const numberFromUint32 = (buffer: Uint8Array, littleEndian?: boolean) =>
+const numberFromUint32 = (buffer: Uint8Array, littleEndian?: boolean): number =>
   new DataView(buffer.buffer).getUint32(0, littleEndian);
 
-export const tokenIndexToId = (canisterId: Principal, index: bigint) => {
+export const tokenIndexToId = (
+  canisterId: Principal,
+  index: bigint,
+): Principal => {
   const padding = new Buffer("\x0Atid");
   const array = new Uint8Array([
     ...padding,
@@ -77,7 +112,7 @@ export const tokenIndexToId = (canisterId: Principal, index: bigint) => {
   return Principal.fromUint8Array(array);
 };
 
-export const tokenIndexFromId = (id: Principal) => {
+export const tokenIdToIndex = (id: Principal): bigint => {
   const bytes = id.toUint8Array();
   const padding = Uint8Array.from(new Buffer("\x0Atid"));
   if (

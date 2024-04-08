@@ -1,4 +1,5 @@
 import {
+  type Attribute,
   type CommonTokenMethods,
   type CreateActor,
   createCandidDecoder,
@@ -8,18 +9,23 @@ import {
   type ImplementedStandards,
   isAccountHash,
   type MetadataValue,
+  metadataValueToJsonValue,
   type NonFungibleTokenMethods,
   type SupportedStandards,
   type TokenConfig,
+  type TokenMetadataToAttributes,
+  type TokenMetadataToImage,
+  type TokenMetadataToUrl,
 } from "@slide-computer/tokens";
 import { Actor, type ActorConfig, type ActorSubclass } from "@dfinity/agent";
 import { idlFactory } from "./idl";
 import { type _SERVICE } from "./service";
 import { Principal } from "@dfinity/principal";
 import {
+  filtersToTokenAttributes,
   getCollectionFilters,
   getCollections,
-  tokenIndexFromId,
+  tokenIdToIndex,
   tokenIndexToId,
   urlIsImage,
 } from "./utils";
@@ -97,7 +103,7 @@ export const Ext = class implements Methods {
             method: "transferToken",
             args: [
               {
-                tokenId: tokenIndexFromId(
+                tokenId: tokenIdToIndex(
                   Principal.fromText(transferRequest.token),
                 ),
                 fromSubaccount: transferRequest.subaccount[0]?.buffer,
@@ -114,6 +120,41 @@ export const Ext = class implements Methods {
     } catch {}
   }
 
+  static tokenMetadataToImage(
+    metadata: Array<[string, MetadataValue]>,
+  ): string | undefined {
+    const image = metadata.find(([key]) => key === "@ext/nonfungible:image");
+    if (!image || !("Text" in image[1])) {
+      return;
+    }
+    return image[1].Text;
+  }
+
+  static tokenMetadataToUrl(
+    metadata: Array<[string, MetadataValue]>,
+  ): string | undefined {
+    const url = metadata.find(([key]) => key === "@ext/nonfungible:url");
+    if (!url || !("Text" in url[1])) {
+      return;
+    }
+    return url[1].Text;
+  }
+
+  static tokenMetadataToAttributes(
+    metadata: Array<[string, MetadataValue]>,
+  ): Attribute[] | undefined {
+    const attributes = metadata.find(
+      ([key]) => key === "@ext/nonfungible:attributes",
+    );
+    if (!attributes || !("Map" in attributes[1])) {
+      return;
+    }
+    return attributes[1].Map.map(([key, value]) => ({
+      value: metadataValueToJsonValue(value),
+      traitType: key,
+    }));
+  }
+
   async metadata(): Promise<[string, MetadataValue][]> {
     const [name, symbol, totalSupply] = await Promise.all([
       this.name(),
@@ -121,9 +162,9 @@ export const Ext = class implements Methods {
       this.totalSupply(),
     ]);
     return [
-      ["@ext/nonfungible:name", { Text: name }],
-      ["@ext/nonfungible:symbol", { Text: symbol }],
-      ["@ext/nonfungible:total_supply", { Text: totalSupply }],
+      ["@ext/common:name", { Text: name }],
+      ["@ext/common:symbol", { Text: symbol }],
+      ["@ext/common:total_supply", { Nat: totalSupply }],
     ] as Array<[string, MetadataValue]>;
   }
 
@@ -217,45 +258,18 @@ export const Ext = class implements Methods {
   async tokenMetadata(
     tokenId: bigint,
   ): Promise<Array<[string, MetadataValue]> | undefined> {
-    const filters = await getCollectionFilters(
-      Principal.from(this.#config.canisterId),
-    );
-    if (!filters) {
-      return;
-    }
-    const [attributes, tokens] = filters;
-    const token = tokens.find(([index]) => index === Number(tokenId));
-    if (!token) {
-      return;
-    }
-    return [
-      [
-        `@ext/nonfungible:attributes`,
-        {
-          Map: attributes.map(
-            ([attributeIndex, attributeLabel, attributeValues]) => {
-              const tokenAttribute = token[1].find(
-                ([tokenAttributeIndex]) =>
-                  tokenAttributeIndex === attributeIndex,
-              );
-              if (!tokenAttribute) {
-                throw Error("Attribute cannot be found");
-              }
-              const tokenAttributeValueIndex = tokenAttribute[1];
-              const attributeValue = attributeValues.find(
-                ([attributeValueIndex]) =>
-                  attributeValueIndex === tokenAttributeValueIndex,
-              );
-              if (!attributeValue) {
-                throw Error("Attribute value cannot be found");
-              }
-              const attributeValueLabel = attributeValue[1];
-              return [attributeLabel, { Text: attributeValueLabel }];
-            },
-          ),
-        },
-      ],
+    const canisterId = Principal.from(this.#config.canisterId);
+    const url = `https://${canisterId.toText()}.raw.icp0.io/?tokenid=${tokenIndexToId(canisterId, tokenId)}`;
+    const filters = await getCollectionFilters(canisterId);
+    const attributes = filters && filtersToTokenAttributes(filters, tokenId);
+    const metadata: Array<[string, MetadataValue]> = [
+      ["@ext/nonfungible:image", { Text: url }],
+      ["@ext/nonfungible:url", { Text: url }],
     ];
+    if (attributes) {
+      metadata.push(["@ext/nonfungible:attributes", attributes]);
+    }
+    return metadata;
   }
 
   async ownerOf(tokenId: bigint): Promise<string | undefined> {
@@ -342,4 +356,7 @@ export const Ext = class implements Methods {
 } satisfies SupportedStandards &
   ImplementedStandards &
   CreateActor<_SERVICE> &
-  DecodeCall<Methods>;
+  DecodeCall<Methods> &
+  TokenMetadataToImage &
+  TokenMetadataToUrl &
+  TokenMetadataToAttributes;

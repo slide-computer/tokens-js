@@ -9,3 +9,4 @@ export * from "./non-fungible-methods";
 export * from "./common-batch-methods";
 export * from "./fungible-batch-methods";
 export * from "./non-fungible-batch-methods";
+export * from "./token-metadata";

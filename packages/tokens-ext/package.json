@@ -45,7 +45,6 @@
     "@slide-computer/tokens": "^2.0.0"
   },
   "dependencies": {
-    "buffer": "^6.0.3",
-    "@noble/hashes": "^1.4.0"
+    "buffer": "^6.0.3"
   }
 }

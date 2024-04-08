@@ -1,4 +1,5 @@
 import {
+  type Attribute,
   type CommonTokenMethods,
   type CreateActor,
   createCandidDecoder,
@@ -6,9 +7,13 @@ import {
   type DecodeCall,
   type ImplementedStandards,
   type MetadataValue,
+  metadataValueToJsonValue,
   type NonFungibleTokenMethods,
   type SupportedStandards,
   type TokenConfig,
+  type TokenMetadataToAttributes,
+  type TokenMetadataToImage,
+  type TokenMetadataToUrl,
 } from "@slide-computer/tokens";
 import { Actor, type ActorConfig, type ActorSubclass } from "@dfinity/agent";
 import { idlFactory } from "./idl";
@@ -93,6 +98,53 @@ export const Dip721V2 = class implements Methods {
         }
       }
     } catch {}
+  }
+
+  static tokenMetadataToImage(
+    metadata: Array<[string, MetadataValue]>,
+  ): string | undefined {
+    const properties = metadata.find(([key]) => key === "dip721v2:properties");
+    if (!properties || !("Map" in properties[1])) {
+      return;
+    }
+    const location = properties[1].Map.find(([key]) => key === "location");
+    if (!location || !("Text" in location[1])) {
+      return;
+    }
+    return location[1].Text;
+  }
+
+  static tokenMetadataToUrl(
+    metadata: Array<[string, MetadataValue]>,
+  ): string | undefined {
+    const properties = metadata.find(([key]) => key === "dip721v2:properties");
+    if (!properties || !("Map" in properties[1])) {
+      return;
+    }
+    const location = properties[1].Map.find(([key]) => key === "location");
+    if (!location || !("Text" in location[1])) {
+      return;
+    }
+    return location[1].Text;
+  }
+
+  static tokenMetadataToAttributes(
+    metadata: Array<[string, MetadataValue]>,
+  ): Attribute[] | undefined {
+    const properties = metadata.find(([key]) => key === "dip721v2:properties");
+    if (!properties || !("Map" in properties[1])) {
+      return;
+    }
+    const attributes = properties[1].Map.filter(
+      ([key]) => key !== "thumbnail" && key !== "location",
+    );
+    if (!attributes.length) {
+      return;
+    }
+    return attributes.map(([key, value]) => ({
+      value: metadataValueToJsonValue(value),
+      traitType: key,
+    }));
   }
 
   async metadata(): Promise<Array<[string, MetadataValue]>> {
@@ -212,7 +264,7 @@ export const Dip721V2 = class implements Methods {
       ["dip721v2:minted_by", { Text: res.Ok.minted_by.toText() }],
 
       [
-        `dip721v2:properties`,
+        "dip721v2:properties",
         {
           Map: res.Ok.properties.map(([key, val]) => [
             key,
@@ -286,4 +338,7 @@ export const Dip721V2 = class implements Methods {
 } satisfies SupportedStandards &
   ImplementedStandards &
   CreateActor<_SERVICE> &
-  DecodeCall<Methods>;
+  DecodeCall<Methods> &
+  TokenMetadataToImage &
+  TokenMetadataToUrl &
+  TokenMetadataToAttributes;
