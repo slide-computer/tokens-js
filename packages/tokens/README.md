@@ -36,7 +36,7 @@ import { Icrc7 } from "@slide-computer/tokens-icrc7";
 import { Icrc10 } from "@slide-computer/tokens-icrc10";
 ```
 
-To get started with the tokens, run
+To get started with a token, run
 
 ```js
 // ICRC-10 is listed first, because it should be the primary way of identifying
