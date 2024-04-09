@@ -16,6 +16,7 @@ import {
   type TokenMetadataToAttributes,
   type TokenMetadataToImage,
   type TokenMetadataToUrl,
+  type UsesAccountHash,
 } from "@slide-computer/tokens";
 import { Actor, type ActorConfig, type ActorSubclass } from "@dfinity/agent";
 import { idlFactory } from "./idl";
@@ -41,6 +42,7 @@ type Methods = Pick<
 
 export const Ext = class implements Methods {
   static implementedStandards = ["@ext/common", "@ext/nonfungible"] as const;
+  static usesAccountHash = true;
 
   readonly #config: TokenConfig;
   readonly #actor: ActorSubclass<_SERVICE>;
@@ -359,4 +361,5 @@ export const Ext = class implements Methods {
   DecodeCall<Methods> &
   TokenMetadataToImage &
   TokenMetadataToUrl &
-  TokenMetadataToAttributes;
+  TokenMetadataToAttributes &
+  UsesAccountHash;

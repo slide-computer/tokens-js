@@ -83,9 +83,9 @@ export const createToken = <
         }),
       ),
     )
-      .then((supportedStandards) =>
-        supportedStandards.flat().map(({ name }) => name),
-      )
+      .then((supportedStandards) => [
+        ...new Set(supportedStandards.flat().map(({ name }) => name)),
+      ])
       .then((supportedStandards) =>
         createToken(tokens, {
           ...config,
@@ -106,14 +106,25 @@ export const createToken = <
     ImplementedStandards &
     DecodeCall<any> &
     TokenMetadataMethods = {
-    implementedStandards: config.supportedStandards,
+    implementedStandards: supportedTokens.flatMap(
+      (supportedToken) => supportedToken.implementedStandards,
+    ),
 
     async supportedStandards(): Promise<Array<{ name: string; url: string }>> {
-      return (
-        await Promise.all(
-          tokens.map((token) => token.supportedStandards(config)),
-        )
-      ).flat();
+      return [
+        ...new Map(
+          (
+            await Promise.all(
+              tokens.map((token) => token.supportedStandards(config)),
+            )
+          )
+            .flat()
+            .map((supportedStandard) => [
+              supportedStandard.name,
+              supportedStandard,
+            ]),
+        ).values(),
+      ];
     },
 
     decodeCall(

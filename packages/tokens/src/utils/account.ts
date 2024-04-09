@@ -90,3 +90,12 @@ export const decodeAccount = (accountAddress: string): Account => {
   }
   return { owner, subaccount };
 };
+
+export const isAccount = (accountAddress: string) => {
+  try {
+    decodeAccount(accountAddress);
+    return true;
+  } catch {
+    return false;
+  }
+};
