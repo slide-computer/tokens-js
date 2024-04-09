@@ -1,0 +1,9 @@
+node_modules/
+dist/
+lib/
+**/*.js
+**/*.js.map
+**/*.d.ts
+
+# generated docs
+/docs/reference

@@ -7,7 +7,8 @@
     "lib": [
       "dom",
       "es2015",
-      "es2017"
+      "es2017",
+      "es2020"
     ],
     "rootDir": "./src",
     "sourceMap": true,
@@ -16,7 +17,10 @@
     "declaration": true,
     "forceConsistentCasingInFileNames": true,
     "esModuleInterop": true,
-    "allowJs": true
+    "allowJs": true,
+    "verbatimModuleSyntax": true
   },
-  "include": ["src/**/*"]
+  "include": [
+    "src/**/*"
+  ]
 }
