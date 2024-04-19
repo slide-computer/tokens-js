@@ -1,6 +1,6 @@
 {
   "name": "@slide-computer/tokens-dip721-v2-approval",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "author": "Slide",
   "license": "MIT",
   "description": "JavaScript and TypeScript library to interact with tokens on the Internet Computer",
@@ -42,6 +42,6 @@
   "peerDependencies": {
     "@dfinity/agent": "^1.0.1",
     "@dfinity/principal": "^1.0.1",
-    "@slide-computer/tokens": "^2.2.0"
+    "@slide-computer/tokens": "^2.2.1"
   }
 }
