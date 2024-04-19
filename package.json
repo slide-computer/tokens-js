@@ -1,6 +1,6 @@
 {
   "name": "@slide-computer/tokens",
-  "version": "2.0.0",
+  "version": "2.2.0",
   "private": true,
   "description": "JavaScript and TypeScript library to interact with tokens on the Internet Computer",
   "workspaces": {
@@ -13,6 +13,7 @@
       "./packages/tokens-ext",
       "./packages/tokens-icrc1",
       "./packages/tokens-icrc2",
+      "./packages/tokens-icrc4",
       "./packages/tokens-icrc7",
       "./packages/tokens-icrc10"
     ]

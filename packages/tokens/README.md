@@ -23,7 +23,7 @@ Install additional packages to add support for specific token standards:
 [@slide-computer/tokens-ext](https://www.npmjs.com/package/@slide-computer/tokens-ext)  
 [@slide-computer/tokens-dip721-v1](https://www.npmjs.com/package/@slide-computer/tokens-dip721-v1)  
 [@slide-computer/tokens-dip721-v2](https://www.npmjs.com/package/@slide-computer/tokens-dip721-v2)  
-[@slide-computer/tokens-dip721-v2-approval](https://www.npmjs.com/package/@slide-computer/tokens-dip721-v2-approval)  
+[@slide-computer/tokens-dip721-v2-approval](https://www.npmjs.com/package/@slide-computer/tokens-dip721-v2-approval)
 
 ## In the browser:
 
@@ -77,7 +77,7 @@ const balance = await token.balanceOf(account);
 
 // Create string from principal and get it's balance
 const principal = ACCOUNT_PRINCIPAL.toText();
-const balanceFromPrincipal = await token.balanceOf(account);
+const balanceFromPrincipal = await token.balanceOf(principal);
 
 // Create ICP ledger account hash and get balance
 const accountHash = hashAccount({
@@ -144,3 +144,27 @@ const token2 = createToken([Icrc10, Icrc1, Icrc2, Icrc4, Icrc7], {
   supportedStandards: standards
 });
 ```
+
+## List of all available methods
+
+See methods defined on the following exported types
+
+### Utility method types
+
+- [`ImplementedStandards`](https://github.com/slide-computer/tokens-js/blob/main/packages/tokens/src/types/implemented-standards.ts)
+- [`SupportedStandards `](https://github.com/slide-computer/tokens-js/blob/main/packages/tokens/src/types/supported-standards.ts)
+- [`DecodeCall`](https://github.com/slide-computer/tokens-js/blob/main/packages/tokens/src/types/decode-call.ts)
+- [`TokenMetadataMethods`](https://github.com/slide-computer/tokens-js/blob/main/packages/tokens/src/types/token-metadata.ts)
+
+### Token method types
+
+- [`CommonTokenMethods`](https://github.com/slide-computer/tokens-js/blob/main/packages/tokens/src/types/common-methods.ts)
+- [`FungibleTokenMethods`](https://github.com/slide-computer/tokens-js/blob/main/packages/tokens/src/types/fungible-methods.ts)
+- [`NonFungibleTokenMethods`](https://github.com/slide-computer/tokens-js/blob/main/packages/tokens/src/types/non-fungible-methods.ts)
+
+### Token batch method types
+
+- [`CommonTokenBatchMethods`](https://github.com/slide-computer/tokens-js/blob/main/packages/tokens/src/types/common-batch-methods.ts)
+- [`FungibleTokenBatchMethods`](https://github.com/slide-computer/tokens-js/blob/main/packages/tokens/src/types/fungible-batch-methods.ts)
+- [`NonFungibleTokenBatchMethods`](https://github.com/slide-computer/tokens-js/blob/main/packages/tokens/src/types/non-fungible-batch-methods.ts)
+

@@ -19,9 +19,8 @@ export type TokenConfig = ActorConfig & {
   queryAgent?: Agent;
 };
 
-type TokenImplementation = SupportedStandards &
-  ImplementedStandards &
-  Partial<DecodeCall<any> & TokenMetadataMethods> &
+type TokenImplementation = ImplementedStandards &
+  Partial<SupportedStandards & DecodeCall<any> & TokenMetadataMethods> &
   (new (
     config: TokenConfig,
   ) => Partial<
@@ -49,16 +48,24 @@ type SupportedTokens<
   S extends readonly string[],
 > = T extends unknown ? SupportedToken<T, S> : never;
 
+type UnionToIntersection<U> = (U extends any ? (x: U) => void : never) extends (
+  x: infer I,
+) => void
+  ? I
+  : never;
+
 export const createToken = <
   Tokens extends TokenImplementation,
   Config extends TokenConfig & {
     supportedStandards?: string[] | readonly string[];
   },
-  Wrapper = (Config["supportedStandards"] extends string[]
-    ? Partial<InstanceType<Tokens>>
-    : Config["supportedStandards"] extends readonly string[]
-      ? InstanceType<SupportedTokens<Tokens, Config["supportedStandards"]>>
-      : Partial<InstanceType<Tokens>>) &
+  Wrapper = UnionToIntersection<
+    Config["supportedStandards"] extends string[]
+      ? Partial<InstanceType<Tokens>>
+      : Config["supportedStandards"] extends readonly string[]
+        ? InstanceType<SupportedTokens<Tokens, Config["supportedStandards"]>>
+        : Partial<InstanceType<Tokens>>
+  > &
     SupportedStandardsWithoutConfig &
     ImplementedStandards &
     (Tokens extends DecodeCall<any>
@@ -71,16 +78,17 @@ export const createToken = <
     ? Wrapper
     : Promise<Wrapper>,
 >(
-  tokens: Tokens[],
+  tokens: Tokens[] | readonly Tokens[],
   config: Config,
 ): PossiblyPromise => {
   if (!config.supportedStandards) {
     return Promise.all(
-      tokens.map((token) =>
-        token.supportedStandards({
-          ...config,
-          agent: config.queryAgent ?? config.agent,
-        }),
+      tokens.map(
+        (token) =>
+          token.supportedStandards?.({
+            ...config,
+            agent: config.queryAgent ?? config.agent,
+          }) ?? [],
       ),
     )
       .then((supportedStandards) => [
@@ -115,7 +123,7 @@ export const createToken = <
         ...new Map(
           (
             await Promise.all(
-              tokens.map((token) => token.supportedStandards(config)),
+              tokens.map((token) => token.supportedStandards?.(config) ?? []),
             )
           )
             .flat()
